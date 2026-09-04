@@ -1,0 +1,131 @@
+// Profit calculation utilities for MarginMind
+
+export interface OrderMetrics {
+  totalRevenue: number;
+  totalCost: number;
+  shippingCost: number;
+  transactionFee: number;
+  adSpend: number;
+  netProfit: number;
+  profitMargin: number;
+}
+
+export interface AggregatedMetrics {
+  totalOrders: number;
+  totalRevenue: number;
+  totalProfit: number;
+  averageOrderValue: number;
+  averageMargin: number;
+  topProducts: Array<{
+    id: string;
+    title: string;
+    revenue: number;
+    profit: number;
+    margin: number;
+  }>;
+  dailyMetrics: Array<{
+    date: string;
+    revenue: number;
+    profit: number;
+    orders: number;
+  }>;
+}
+
+// Calculate profit for a single order
+export function calculateOrderProfit(params: {
+  revenue: number;
+  productCost: number;
+  shippingCost: number;
+  transactionFeePercent?: number;
+  adSpend?: number;
+}): OrderMetrics {
+  const { revenue, productCost, shippingCost, transactionFeePercent = 2.9, adSpend = 0 } = params;
+
+  const transactionFee = revenue * (transactionFeePercent / 100) + 0.30;
+  const totalCost = productCost + shippingCost + transactionFee + adSpend;
+  const netProfit = revenue - totalCost;
+  const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+
+  return {
+    totalRevenue: revenue,
+    totalCost,
+    shippingCost,
+    transactionFee,
+    adSpend,
+    netProfit,
+    profitMargin,
+  };
+}
+
+// Aggregate metrics across multiple orders
+export function aggregateMetrics(orders: Array<OrderMetrics & { date: string }>): AggregatedMetrics {
+  const totalOrders = orders.length;
+  const totalRevenue = orders.reduce((sum, o) => sum + o.totalRevenue, 0);
+  const totalProfit = orders.reduce((sum, o) => sum + o.netProfit, 0);
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const averageMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+  // Group by date for daily metrics
+  const dailyMap = new Map<string, { revenue: number; profit: number; orders: number }>();
+  orders.forEach((order) => {
+    const existing = dailyMap.get(order.date) || { revenue: 0, profit: 0, orders: 0 };
+    dailyMap.set(order.date, {
+      revenue: existing.revenue + order.totalRevenue,
+      profit: existing.profit + order.netProfit,
+      orders: existing.orders + 1,
+    });
+  });
+
+  const dailyMetrics = Array.from(dailyMap.entries())
+    .map(([date, metrics]) => ({
+      date,
+      ...metrics,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  return {
+    totalOrders,
+    totalRevenue,
+    totalProfit,
+    averageOrderValue,
+    averageMargin,
+    topProducts: [], // Would be populated from product-level data
+    dailyMetrics,
+  };
+}
+
+// Format currency
+export function formatCurrency(amount: number, currency = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(amount);
+}
+
+// Format percentage
+export function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+// Calculate break-even point
+export function calculateBreakEven(fixedCosts: number, averageMargin: number): number {
+  if (averageMargin <= 0) return Infinity;
+  return fixedCosts / (averageMargin / 100);
+}
+
+// Project future profits
+export function projectProfit(
+  currentMonthlyProfit: number,
+  growthRate: number,
+  months: number
+): number[] {
+  const projections: number[] = [];
+  let projected = currentMonthlyProfit;
+
+  for (let i = 0; i < months; i++) {
+    projected *= 1 + growthRate / 100;
+    projections.push(projected);
+  }
+
+  return projections;
+}

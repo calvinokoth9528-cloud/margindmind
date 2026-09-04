@@ -1,0 +1,75 @@
+{
+  "name": "margindmind",
+  "version": "1.0.0",
+  "description": "MarginMind - E-commerce Profit Analytics Platform",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "node prisma/seed.js",
+    "postinstall": "prisma generate"
+  },
+  "keywords": ["ecommerce", "analytics", "profit", "shopify", "amazon", "dashboard"],
+  "author": "MarginMind",
+  "license": "MIT",
+  "dependencies": {
+    "@stripe/stripe-js": "^9.15.0",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.5.4",
+    "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^1.39.0",
+    "next": "^16.3.4",
+    "next-auth": "^4.24.15",
+    "postcss": "^8.5.26",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-is": "^19.2.8",
+    "recharts": "^3.10.1",
+    "stripe": "^22.6.1",
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@prisma/client": "^5.22.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "prisma": "^5.22.0",
+    "typescript": "^5.9.3"
+  },
+  "marginmind": {
+    "name": "MarginMind",
+    "version": "1.0.0",
+    "port": 3000,
+    "api": "http://localhost:3000",
+    "endpoints": {
+      "auth": "/api/auth",
+      "register": "/api/register",
+      "dashboard": "/api/dashboard",
+      "orders": "/api/orders",
+      "products": "/api/products",
+      "shops": "/api/shops",
+      "shopify": "/api/shopify",
+      "stripe": "/api/stripe"
+    },
+    "pages": {
+      "landing": "/",
+      "login": "/login",
+      "dashboard": "/dashboard",
+      "orders": "/orders",
+      "products": "/products",
+      "stores": "/stores",
+      "settings": "/settings"
+    },
+    "demo": {
+      "email": "demo@margindmind.com",
+      "password": "password123"
+    }
+  }
+}

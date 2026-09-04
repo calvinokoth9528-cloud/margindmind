@@ -1,0 +1,103 @@
+// Prisma schema for MarginMind
+// Database models for e-commerce profit tracking
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String
+  stripeId      String?   @unique
+  subscription  Subscription?
+  shops         Shop[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  stripeSubId     String?  @unique
+  stripePriceId   String?
+  status          String   @default("inactive")
+  currentPeriodEnd DateTime?
+  plan            String   @default("FREE")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Shop {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  platform        String
+  shopUrl         String
+  accessToken     String
+  orders          Order[]
+  products        Product[]
+  lastSync        DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, shopUrl])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  shopId      String
+  shop        Shop     @relation(fields: [shopId], references: [id])
+  externalId  String
+  title       String
+  sku         String?
+  cost        Float    @default(0)
+  price       Float    @default(0)
+  imageUrl    String?
+  orderItems  OrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([shopId, externalId])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  shopId          String
+  shop            Shop        @relation(fields: [shopId], references: [id])
+  externalId      String
+  orderNumber     String
+  totalRevenue    Float
+  totalCost       Float       @default(0)
+  shippingCost    Float       @default(0)
+  transactionFee  Float       @default(0)
+  adSpend         Float       @default(0)
+  netProfit       Float       @default(0)
+  profitMargin    Float       @default(0)
+  status          String      @default("pending")
+  orderDate       DateTime
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([shopId, externalId])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+  cost      Float   @default(0)
+  createdAt DateTime @default(now())
+}
