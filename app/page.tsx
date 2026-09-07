@@ -185,7 +185,7 @@ export default function Home() {
               <TrendingUp className="h-6 w-6 text-brand-500" />
               <span className="font-semibold text-white">MarginMind</span>
             </div>
-            <p className="text-sm">© 2024 MarginMind. All rights reserved.</p>
+            <p className="text-sm">© {new Date().getFullYear()} MarginMind. All rights reserved.</p>
           </div>
         </div>
       </footer>

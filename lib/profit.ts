@@ -57,6 +57,91 @@ export function calculateOrderProfit(params: {
   };
 }
 
+export interface ProductMetrics {
+  id: string;
+  title: string;
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin: number;
+  units: number;
+}
+
+export interface PeriodComparison {
+  revenueChangePct: number | null;
+  profitChangePct: number | null;
+  ordersChangePct: number | null;
+}
+
+// Aggregate product-level metrics from orders with line items
+export function aggregateProductMetrics(
+  orders: Array<{
+    items: Array<{
+      quantity: number;
+      price: number;
+      cost: number;
+      product: { id: string; title: string } | null;
+    }>;
+  }>
+): ProductMetrics[] {
+  const productMap = new Map<
+    string,
+    {
+      id: string;
+      title: string;
+      revenue: number;
+      cost: number;
+      units: number;
+    }
+  >();
+
+  orders.forEach((order) => {
+    order.items.forEach((item) => {
+      if (!item.product) return;
+      const existing = productMap.get(item.product.id) || {
+        id: item.product.id,
+        title: item.product.title,
+        revenue: 0,
+        cost: 0,
+        units: 0,
+      };
+      existing.revenue += item.price * item.quantity;
+      existing.cost += item.cost * item.quantity;
+      existing.units += item.quantity;
+      productMap.set(item.product.id, existing);
+    });
+  });
+
+  return Array.from(productMap.values())
+    .map((p) => {
+      const profit = p.revenue - p.cost;
+      return {
+        ...p,
+        profit,
+        margin: p.revenue > 0 ? (profit / p.revenue) * 100 : 0,
+      };
+    })
+    .sort((a, b) => b.profit - a.profit);
+}
+
+// Compare the current period against a previous period of equal length.
+// Returns null deltas when the baseline period has no data (cannot compute % change).
+export function comparePeriods(
+  current: { revenue: number; profit: number; orders: number },
+  previous: { revenue: number; profit: number; orders: number }
+): PeriodComparison {
+  const pctChange = (cur: number, prev: number): number | null => {
+    if (prev === 0) return null;
+    return ((cur - prev) / Math.abs(prev)) * 100;
+  };
+
+  return {
+    revenueChangePct: pctChange(current.revenue, previous.revenue),
+    profitChangePct: pctChange(current.profit, previous.profit),
+    ordersChangePct: pctChange(current.orders, previous.orders),
+  };
+}
+
 // Aggregate metrics across multiple orders
 export function aggregateMetrics(orders: Array<OrderMetrics & { date: string }>): AggregatedMetrics {
   const totalOrders = orders.length;

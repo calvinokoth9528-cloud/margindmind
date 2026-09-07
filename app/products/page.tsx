@@ -12,6 +12,11 @@ import {
   LogOut,
   Search,
   Globe,
+  Pencil,
+  Check,
+  X,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/profit';
 
@@ -32,6 +37,12 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [costInput, setCostInput] = useState('');
+  const [savingCost, setSavingCost] = useState(false);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -44,6 +55,41 @@ export default function ProductsPage() {
       fetchProducts();
     }
   }, [session]);
+
+  const handleSaveCost = async (product: Product) => {
+    const cost = parseFloat(costInput);
+    if (isNaN(cost) || cost < 0) {
+      setNotice({ type: 'error', text: 'Enter a valid cost (0 or more).' });
+      return;
+    }
+    try {
+      setSavingCost(true);
+      setNotice(null);
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cost }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        setEditingId(null);
+        setNotice({
+          type: 'success',
+          text: `Cost updated to ${formatCurrency(cost)} — ${result.ordersRecomputed} historical order${
+            result.ordersRecomputed === 1 ? '' : 's'
+          } recalculated.`,
+        });
+        fetchProducts();
+      } else {
+        setNotice({ type: 'error', text: result.error || 'Failed to update cost.' });
+      }
+    } catch (err) {
+      console.error('Failed to update cost:', err);
+      setNotice({ type: 'error', text: 'Failed to update cost.' });
+    } finally {
+      setSavingCost(false);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -134,6 +180,29 @@ export default function ProductsPage() {
           </div>
         </div>
 
+        {notice && (
+          <div
+            className={`card p-4 mb-6 flex items-center gap-2 ${
+              notice.type === 'success'
+                ? 'border-green-200 bg-green-50'
+                : 'border-red-200 bg-red-50'
+            }`}
+          >
+            {notice.type === 'success' ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            )}
+            <p
+              className={`text-sm ${
+                notice.type === 'success' ? 'text-green-700' : 'text-red-700'
+              }`}
+            >
+              {notice.text}
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
             <div key={product.id} className="card p-6">
@@ -148,9 +217,52 @@ export default function ProductsPage() {
                   <span className="text-gray-500">Price</span>
                   <span className="text-gray-900">{formatCurrency(product.price)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center">
                   <span className="text-gray-500">Cost</span>
-                  <span className="text-gray-900">{formatCurrency(product.cost)}</span>
+                  {editingId === product.id ? (
+                    <span className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={costInput}
+                        onChange={(e) => setCostInput(e.target.value)}
+                        autoFocus
+                        className="w-24 px-2 py-1 border border-gray-300 rounded-md text-sm text-right"
+                      />
+                      <button
+                        onClick={() => handleSaveCost(product)}
+                        disabled={savingCost}
+                        className="text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                        aria-label="Save cost"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-gray-400 hover:text-gray-600"
+                        aria-label="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <span className="text-gray-900">
+                        {formatCurrency(product.cost)}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setEditingId(product.id);
+                          setCostInput(String(product.cost));
+                        }}
+                        className="text-gray-400 hover:text-brand-600"
+                        aria-label="Edit cost"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Profit</span>

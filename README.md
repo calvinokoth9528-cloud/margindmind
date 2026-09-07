@@ -1,177 +1,193 @@
-# MarginMind - E-commerce Profit Analytics Platform
+# MarginMind — E-commerce Profit Analytics
 
-**Know your true profit on every sale.**
-
-MarginMind connects to your Shopify, Amazon, Etsy, and WooCommerce stores to automatically calculate and visualize your real profit margins after all fees, shipping, and ad spend.
-
-> 📖 **Full documentation book:** See `MarginMind_Book.md` in this repository for a comprehensive guide covering architecture, profit calculation logic, API endpoints, pricing strategy, and deployment instructions.
-
-## Features
-
-- **True Profit Calculation**: Automatically deducts platform fees, shipping costs, transaction fees, and ad spend
-- **Multi-Platform Support**: Connect Shopify, Amazon, Etsy, WooCommerce, and more
-- **Real-Time Analytics**: Live dashboards showing revenue, profit trends, and top products
-- **Order Management**: View all orders with detailed profit breakdowns
-- **Subscription Tiers**: Free, Starter ($29/mo), Pro ($79/mo), and Enterprise ($199/mo)
+Track your **true net profit** on every sale. MarginMind connects to your Shopify store,
+imports orders and products, and automatically calculates profit after product costs,
+shipping, transaction fees, and ad spend.
 
 ## Tech Stack
 
-- **Framework**: Next.js 14+ (App Router)
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: NextAuth.js with credentials + JWT
-- **Payments**: Stripe (subscriptions + billing portal)
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **Validation**: Zod
-
-## Project Structure
-
-```
-margindmind/
-├── app/
-│   ├── api/
-│   │   ├── auth/[...nextauth]/route.ts   # NextAuth configuration
-│   │   ├── dashboard/route.ts             # Dashboard data API
-│   │   ├── register/route.ts              # User registration
-│   │   ├── shopify/                       # Shopify OAuth + webhooks
-│   │   └── stripe/                        # Stripe checkout + webhooks
-│   ├── dashboard/page.tsx                 # Main dashboard UI
-│   ├── login/page.tsx                     # Login/Register page
-│   ├── globals.css                        # Global styles
-│   ├── layout.tsx                         # Root layout
-│   └── page.tsx                           # Landing page
-├── components/                            # Reusable UI components
-├── lib/
-│   ├── auth.ts                            # Auth utilities + NextAuth config
-│   ├── db.ts                              # Prisma client singleton
-│   ├── profit.ts                          # Profit calculation functions
-│   ├── shopify.ts                         # Shopify API integration
-│   └── stripe.ts                          # Stripe integration + plans
-├── prisma/
-│   └── schema.prisma                      # Database schema
-├── .env.example                           # Environment variables template
-├── next.config.js                         # Next.js configuration
-├── tailwind.config.js                     # Tailwind configuration
-└── package.json
-```
+- **Framework:** Next.js 16 (App Router) + React 19 + TypeScript
+- **Database:** Prisma + SQLite (local dev) — swap `DATABASE_URL` for Postgres in production
+- **Auth:** NextAuth (credentials, JWT sessions) with bcrypt
+- **Payments:** Stripe subscriptions (checkout + webhooks)
+- **Store data:** Shopify Admin API (OAuth, orders, products) **or CSV import** (template + Shopify export columns auto-detected)
+- **Charts:** Recharts
+- **Styling:** Tailwind CSS v4
+- **Tests:** Node's built-in test runner (`node --test`)
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL database
-- Stripe account (for payments)
-- Shopify Partner account (for Shopify integration)
-
-### Installation
-
-1. **Clone and install dependencies**
-   ```bash
-   cd margindmind
-   yarn install
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Fill in your database URL, Stripe keys, etc.
-   ```
-
-3. **Set up the database**
-   ```bash
-   yarn db:push        # Push schema to database
-   yarn db:generate    # Generate Prisma client
-   ```
-
-4. **Run the development server**
-   ```bash
-   yarn dev
-   ```
-
-5. **Open in browser**
-   Navigate to `http://localhost:3000`
-
-## Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `NEXTAUTH_SECRET` | Random string for JWT signing |
-| `NEXTAUTH_URL` | Your app URL |
-| `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_STARTER_PRICE_ID` | Stripe price ID for Starter plan |
-| `STRIPE_PRO_PRICE_ID` | Stripe price ID for Pro plan |
-| `STRIPE_ENTERPRISE_PRICE_ID` | Stripe price ID for Enterprise plan |
-| `SHOPIFY_API_KEY` | Shopify app API key |
-| `SHOPIFY_API_SECRET` | Shopify app secret |
-| `SHOPIFY_APP_URL` | Your app URL for Shopify OAuth |
-
-## Profit Calculation Formula
-
-```
-Net Profit = Revenue - Product Cost - Shipping - Transaction Fees - Ad Spend
-
-Profit Margin = (Net Profit / Revenue) × 100
+```bash
+npm install
+cp .env.example .env        # fill in values (SQLite works out of the box)
+npm run db:push             # create the database schema
+npm run db:seed             # demo user + 30 days of sample orders
+npm run dev                 # http://localhost:3000
 ```
 
-### Fee Assumptions (configurable per store)
+**Demo login:** `demo@margindmind.com` / `password123`
 
-- **Shopify**: 2.9% + $0.30 (Basic), 2.6% + $0.30 (Shopify), 2.4% + $0.30 (Advanced)
-- **Amazon**: Varies by category (typically 8-15%)
-- **Etsy**: 6.5% transaction fee + $0.20 listing fee
+## Scripts
 
-## API Endpoints
+| Command            | Description                                   |
+| ------------------ | --------------------------------------------- |
+| `npm run dev`      | Start the dev server                          |
+| `npm run build`    | Production build                              |
+| `npm run start`    | Serve the production build                    |
+| `npm test`         | Run unit tests (profit, shopify, stripe, csv, import libs) |
+| `npm run db:push`  | Apply the Prisma schema to the database       |
+| `npm run db:seed`  | Load demo data                                |
+| `npm run db:studio`| Open Prisma Studio                            |
 
-### Authentication
-- `POST /api/register` - Create new account
-- `POST /api/auth/[...nextauth]` - NextAuth endpoints
+## Architecture
 
-### Dashboard
-- `GET /api/dashboard?period=30` - Get aggregated metrics
+```
+app/
+  page.tsx              Landing page + pricing
+  login/page.tsx        Sign in
+  dashboard/page.tsx    KPIs, trends, top products, recent orders
+  orders/               Order table with period filter + search
+  products/             Product cards with per-product profit
+  stores/               Connected stores (sync / remove)
+  settings/             Account settings
+  api/
+    dashboard/          Aggregated metrics + period comparison
+    orders/ products/   List endpoints (auth-gated)
+    register/           Signup (zod-validated, Stripe customer)
+    auth/[...nextauth]/ NextAuth credentials flow
+    shopify/            OAuth start (sets state cookie)
+    shopify/callback/   OAuth callback (verifies state, saves shop)
+    shops/[id]/sync/    Import products + orders from Shopify
+    shops/[id]/         DELETE a store and its data
+    import/csv/         Upload order CSVs (template or Shopify exports)
+    stripe/checkout/    Create subscription checkout session
+    stripe/webhook/     Handle subscription lifecycle events
+components/
+  ConnectStoreModal.tsx Shared "connect store" modal (Dashboard + Stores)
+  ImportCsvModal.tsx   CSV upload flow with template download
+lib/
+  csv.ts               Dependency-free CSV parser (delimiters, quoting, dates)
+  import.ts            Column auto-mapping, multi-line order grouping, profit math
+  template.ts          Client-safe import template generator
+lib/
+  profit.ts             Profit math: order metrics, aggregation, product metrics,
+                        period comparison, break-even, projections
+  shopify.ts            Shopify API client + transforms + webhook verify
+  stripe.ts             Stripe client + plan configuration
+  auth.ts / db.ts       NextAuth options / Prisma singleton
+prisma/schema.prisma    User, Subscription, Shop, Product, Order, OrderItem
+```
 
-### Shopify
-- `GET /api/shopify?shop=storename` - Initiate OAuth
-- `POST /api/shopify` - Handle OAuth callback
+## Key Design Decisions
 
-### Stripe
-- `POST /api/stripe/checkout` - Create checkout session
-- `POST /api/stripe/webhook` - Handle Stripe webhooks
+- **Profit formula:** `netProfit = revenue − productCost − shipping − (revenue × 2.9% + $0.30) − adSpend`.
+  Transaction fees follow Shopify's standard rate per plan; ad spend is imported as `0`
+  until an ad-platform integration is wired up.
+- **Period comparison:** the dashboard compares the selected window against the identical
+  window immediately before it (`comparePeriods`), showing deltas with `null` (no baseline)
+  handled gracefully.
+- **Product analytics:** per-product profit is aggregated from order line items
+  (`aggregateProductMetrics`) — the top-5 by profit are ranked on the dashboard.
+- **OAuth security:** the Shopify flow stores a random nonce in an httpOnly cookie when
+  initiating auth and verifies it on callback (CSRF protection). The callback saves the
+  access token against the logged-in user's account.
+- **Sync model:** `POST /api/shops/[id]/sync` upserts products and orders incrementally
+  (since `lastSync`), rebuilding line items so data mirrors the source store.
 
-## Deployment
+## Deploying to Production
 
-### Vercel (Recommended)
+### 1. Database
 
-1. Push to GitHub
-2. Import project in Vercel
-3. Add environment variables
-4. Deploy
+SQLite works locally but **will not work on serverless hosts** (ephemeral filesystem).
+Before deploying, create a Postgres database (e.g. Neon, Supabase, Railway) and set:
 
-### Database Options
+```
+DATABASE_URL="postgresql://user:password@host/db?schema=public"
+```
 
-- **Railway**: Easy PostgreSQL setup
-- **Supabase**: Free tier available
-- **Neon**: Serverless PostgreSQL
+Then run migrations:
 
-## Monetization Strategy
+```bash
+npm run db:push
+```
 
-| Plan | Price | Target Customer |
-|------|-------|-----------------|
-| **Free** | $0 | Trial users, small sellers |
-| **Starter** | $29/mo | Growing stores (<$10k/mo) |
-| **Pro** | $79/mo | Established stores ($10k-50k/mo) |
-| **Enterprise** | $199/mo | High-volume sellers ($50k+/mo) |
+### 2. Environment Variables
 
-## Marketing Strategy
+Copy `.env.example` and fill in real values:
 
-1. **SEO**: Target "shopify profit calculator", "ecommerce profit margin"
-2. **Content**: Blog posts on e-commerce profitability
-3. **Communities**: Reddit r/ecommerce, r/shoplify, Facebook groups
-4. **Product Hunt**: Launch on PH for initial traction
-5. **Affiliates**: Partner with e-commerce influencers
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string (prod) |
+| `NEXTAUTH_URL` | Your deployed URL |
+| `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe test/live keys |
+| `STRIPE_*_PRICE_ID` | Stripe price IDs for each plan |
+| `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET` | Your Shopify app credentials |
+| `SHOPIFY_APP_URL` | Your deployed URL (OAuth redirect base) |
 
-## License
+### 3. Shopify App Setup
 
-MIT
+1. Create a **custom app** in your Shopify admin (Settings → Apps → Develop apps).
+2. Scopes: `read_orders`, `read_products` (add `read_analytics` for ad data later).
+3. Set the OAuth redirect URL to `https://your-domain.com/api/shopify/callback`.
+4. Copy the API key/secret into your env vars.
+
+> Note: Shopify doesn't expose landed product **cost** through the basic product API, so
+> imported products start at cost `0`. A "set product cost" editor is the natural next
+> feature to make per-product profit accurate.
+
+### 4. Stripe
+
+- Create the three subscription products/prices (Starter $29, Pro $79, Enterprise $199).
+- Configure the webhook endpoint `https://your-domain.com/api/stripe/webhook` with events
+  `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+
+### 5. Hosting
+
+Deploy to Vercel (or any Next.js host):
+
+```bash
+vercel --prod
+```
+
+Set all env vars in the platform dashboard. Run `npm run db:push` against your production
+database once before the first deploy.
+
+## Importing Data from CSV
+
+No Shopify API keys? Sellers can upload a store's order export directly (Stores →
+**Import CSV**):
+
+1. Click **Import CSV** on the Stores page (download the sample template if you like).
+2. Name the store and choose the `.csv` file. Column names are matched loosely, so
+   **Shopify order exports work as-is** (Name, Paid at, Lineitem quantity/name/sku/price,
+   Total, …) as do template-style files (Order ID, Order Date, Product Title, Quantity,
+   Unit Price, Unit Cost, Shipping, Ad Spend).
+3. The importer groups multi-line orders, computes fees and net profit with the same
+   engine as Shopify sync, then upserts products/orders into a store labeled `CSV import`.
+
+Rules & limits: `.csv` up to 5 MB / 10,000 rows; US dates default to `M/D/Y` (EU `D/M/Y`
+is detected when unambiguous, e.g. `31/12/2026`); rows with unparseable dates are
+reported and skipped; re-uploading the same file updates existing orders by ID.
+
+## Testing
+
+```bash
+npm test
+```
+
+Runs the unit test suite covering:
+
+- `lib/profit` — order profit math, aggregation, product metrics, period comparison,
+  break-even, projections
+- `lib/shopify` — fee calculation, order/product transforms, webhook signature verification
+- `lib/stripe` — plan configuration sanity (limits, pricing)
+
+## Roadmap Ideas
+
+- [x] Product cost editor (landed-cost tracking)
+- [x] CSV order import (template + Shopify exports)
+- [ ] Ad spend import (Meta/Google Ads)
+- [ ] Amazon / Etsy / WooCommerce native connectors
+- [ ] Order-level break-even and projection charts
+- [ ] Email reports

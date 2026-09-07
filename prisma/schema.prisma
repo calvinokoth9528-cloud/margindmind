@@ -17,9 +17,22 @@ model User {
   password      String
   stripeId      String?   @unique
   subscription  Subscription?
+  settings      UserSettings?
   shops         Shop[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model UserSettings {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id])
+  emailNotifications Boolean  @default(true)
+  orderAlerts        Boolean  @default(true)
+  weeklyReports      Boolean  @default(false)
+  marketingEmails    Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Subscription {

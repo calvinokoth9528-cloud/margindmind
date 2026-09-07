@@ -66,9 +66,21 @@ async function main() {
       });
     }
 
+    // Clear any previous demo orders so the seed is re-runnable
+    const existingOrders = await prisma.order.findMany({
+      where: { shopId: shop.id },
+      select: { id: true },
+    });
+    if (existingOrders.length > 0) {
+      await prisma.orderItem.deleteMany({
+        where: { orderId: { in: existingOrders.map((o) => o.id) } },
+      });
+      await prisma.order.deleteMany({ where: { shopId: shop.id } });
+    }
+
     // Create demo orders for the last 30 days
-    const orders = [];
     const now = new Date();
+    const savedProducts = await prisma.product.findMany({ where: { shopId: shop.id } });
 
     for (let i = 0; i < 30; i++) {
       const date = new Date(now);
@@ -77,7 +89,7 @@ async function main() {
       const numOrders = Math.floor(Math.random() * 5) + 1;
 
       for (let j = 0; j < numOrders; j++) {
-        const product = products[Math.floor(Math.random() * products.length)];
+        const product = savedProducts[Math.floor(Math.random() * savedProducts.length)];
         const quantity = Math.floor(Math.random() * 3) + 1;
         const revenue = product.price * quantity;
         const productCost = product.cost * quantity;
@@ -87,29 +99,48 @@ async function main() {
         const netProfit = revenue - productCost - shippingCost - transactionFee - adSpend;
         const profitMargin = (netProfit / revenue) * 100;
 
-        orders.push({
-          shopId: shop.id,
-          externalId: `order_${i}_${j}`,
-          orderNumber: `#${1000 + i * 10 + j}`,
-          totalRevenue: revenue,
-          totalCost: productCost,
-          shippingCost,
-          transactionFee,
-          adSpend,
-          netProfit,
-          profitMargin,
-          status: 'paid',
-          orderDate: date,
+        await prisma.order.create({
+          data: {
+            shopId: shop.id,
+            externalId: `order_${i}_${j}`,
+            orderNumber: `#${1000 + i * 10 + j}`,
+            totalRevenue: revenue,
+            totalCost: productCost,
+            shippingCost,
+            transactionFee,
+            adSpend,
+            netProfit,
+            profitMargin,
+            status: 'paid',
+            orderDate: date,
+            items: {
+              create: [
+                {
+                  productId: product.id,
+                  quantity,
+                  price: product.price,
+                  cost: product.cost,
+                },
+              ],
+            },
+          },
         });
       }
     }
-
-    for (const order of orders) {
-      await prisma.order.create({
-        data: order,
-      });
-    }
   }
+
+  // Ensure the demo user has settings (covers the re-run path)
+  await prisma.userSettings.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
+      userId: user.id,
+      emailNotifications: true,
+      orderAlerts: true,
+      weeklyReports: false,
+      marketingEmails: false,
+    },
+  });
 
   console.log('Seed data created successfully!');
   console.log('Demo login: demo@margindmind.com / password123');

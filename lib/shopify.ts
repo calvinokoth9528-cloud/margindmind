@@ -1,5 +1,7 @@
 // Shopify API integration for MarginMind
 
+import crypto from 'crypto';
+
 const SHOPIFY_API_VERSION = '2024-01';
 
 interface ShopifyConfig {
@@ -55,7 +57,7 @@ export async function fetchShopifyOrders(
   let nextUrl: string | null = url;
 
   while (nextUrl) {
-    const response = await fetch(nextUrl, {
+    const response: Response = await fetch(nextUrl, {
       headers: {
         'X-Shopify-Access-Token': accessToken,
         'Content-Type': 'application/json',
@@ -70,9 +72,9 @@ export async function fetchShopifyOrders(
     orders.push(...data.orders);
 
     // Handle pagination
-    const linkHeader = response.headers.get('Link');
+    const linkHeader: string | null = response.headers.get('Link');
     if (linkHeader) {
-      const nextMatch = linkHeader.match(/<([^>]+)>; rel="next"/);
+      const nextMatch: RegExpMatchArray | null = linkHeader.match(/<([^>]+)>; rel="next"/);
       nextUrl = nextMatch ? nextMatch[1] : null;
     } else {
       nextUrl = null;
@@ -119,11 +121,33 @@ export function calculateShopifyFee(totalPrice: number, plan: string = 'basic'):
   return totalPrice * (percentage / 100) + 0.30;
 }
 
+export interface TransformedShopifyItem {
+  productExternalId: string;
+  quantity: number;
+  price: number;
+  cost: number;
+}
+
+export interface TransformedShopifyOrder {
+  externalId: string;
+  orderNumber: string;
+  totalRevenue: number;
+  totalCost: number;
+  shippingCost: number;
+  transactionFee: number;
+  adSpend: number;
+  netProfit: number;
+  profitMargin: number;
+  status: string;
+  orderDate: Date;
+  items: TransformedShopifyItem[];
+}
+
 // Transform Shopify order to our format
 export function transformShopifyOrder(
   shopifyOrder: ShopifyOrder,
   productCosts: Map<string, number>
-) {
+): TransformedShopifyOrder {
   const totalRevenue = parseFloat(shopifyOrder.total_price);
   const shippingCost = parseFloat(shopifyOrder.total_shipping || '0');
 
@@ -148,21 +172,41 @@ export function transformShopifyOrder(
     adSpend: 0, // Would need to fetch from ad platforms
     netProfit,
     profitMargin,
-    status: shopifyOrder.financial_status,
+    status: shopifyOrder.financial_status || 'pending',
     orderDate: new Date(shopifyOrder.created_at),
-    items: shopifyOrder.line_items.map((item) => ({
-      externalId: item.id.toString(),
-      productId: item.product_id,
-      quantity: item.quantity,
-      price: parseFloat(item.price),
-      cost: productCosts.get(item.product_id) || 0,
-    })),
+    items: shopifyOrder.line_items
+      .filter((item) => item.product_id)
+      .map((item) => ({
+        productExternalId: item.product_id.toString(),
+        quantity: item.quantity,
+        price: parseFloat(item.price),
+        cost: productCosts.get(item.product_id) || 0,
+      })),
+  };
+}
+
+export interface TransformedShopifyProduct {
+  externalId: string;
+  title: string;
+  sku: string | null;
+  price: number;
+}
+
+// Transform Shopify product to our format
+export function transformShopifyProduct(
+  shopifyProduct: ShopifyProduct
+): TransformedShopifyProduct {
+  const variant = shopifyProduct.variants?.[0];
+  return {
+    externalId: shopifyProduct.id.toString(),
+    title: shopifyProduct.title,
+    sku: variant?.sku || null,
+    price: parseFloat(variant?.price || '0'),
   };
 }
 
 // Verify Shopify webhook
 export function verifyShopifyWebhook(payload: string, signature: string, secret: string): boolean {
-  const crypto = require('crypto');
   const hmac = crypto.createHmac('sha256', secret);
   const digest = Buffer.from(hmac.update(payload).digest('hex'), 'utf8');
   const signatureBuffer = Buffer.from(signature, 'utf8');

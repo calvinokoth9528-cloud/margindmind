@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
                 stripeSubId: subscription.id,
                 stripePriceId: priceId,
                 status: subscription.status,
-                currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                currentPeriodEnd: new Date((subscription as any).current_period_end * 1000),
                 plan: plan.id,
               },
             },

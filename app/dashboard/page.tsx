@@ -14,11 +14,9 @@ import {
   LogOut,
   Plus,
   RefreshCw,
-  Calendar,
-   X,
-   Store,
-   Globe,
+  Globe,
 } from 'lucide-react';
+import ConnectStoreModal from '@/components/ConnectStoreModal';
 import {
   LineChart,
   Line,
@@ -30,7 +28,12 @@ import {
   BarChart,
   Bar,
 } from 'recharts';
-import { formatCurrency, formatPercent } from '@/lib/profit';
+import {
+  formatCurrency,
+  formatPercent,
+  calculateBreakEven,
+  projectProfit,
+} from '@/lib/profit';
 
 interface DashboardData {
   metrics: {
@@ -46,6 +49,19 @@ interface DashboardData {
       orders: number;
     }>;
   };
+  comparison: {
+    revenueChangePct: number | null;
+    profitChangePct: number | null;
+    ordersChangePct: number | null;
+  };
+  topProducts: Array<{
+    id: string;
+    title: string;
+    revenue: number;
+    profit: number;
+    margin: number;
+    units: number;
+  }>;
   recentOrders: Array<{
     id: string;
     orderNumber: string;
@@ -63,9 +79,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState('30');
   const [showConnectModal, setShowConnectModal] = useState(false);
-  const [shopUrl, setShopUrl] = useState('');
+  const [fixedCosts, setFixedCosts] = useState('2000');
+  const [growthRate, setGrowthRate] = useState('5');
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -82,19 +100,25 @@ export default function DashboardPage() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(`/api/dashboard?period=${period}`);
       if (response.ok) {
         const result = await response.json();
         setData(result);
+      } else {
+        setError('Failed to load dashboard data. Please try again.');
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      setError('Failed to load dashboard data. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (status === 'loading' || loading) {
+  // Full-screen spinner only while the session resolves or on very first load.
+  // Refreshing/period changes keep the existing content on screen.
+  if (status === 'loading' || (loading && !data)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
@@ -105,6 +129,8 @@ export default function DashboardPage() {
   if (!session) {
     return null;
   }
+
+  const topProducts = data?.topProducts ?? [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -185,6 +211,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="card p-4 mb-6 border-red-200 bg-red-50">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="card p-6">
@@ -195,7 +228,26 @@ export default function DashboardPage() {
             <p className="text-2xl font-bold text-gray-900">
               {data ? formatCurrency(data.metrics.totalRevenue) : '$0.00'}
             </p>
-            <p className="text-sm text-brand-600 mt-1">+{period} days</p>
+            <div className="flex items-center gap-2 mt-1">
+              {data && data.comparison.revenueChangePct !== null ? (
+                <span
+                  className={`text-xs font-medium flex items-center gap-0.5 ${
+                    data.comparison.revenueChangePct >= 0
+                      ? 'text-brand-600'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {data.comparison.revenueChangePct >= 0 ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  {formatPercent(Math.abs(data.comparison.revenueChangePct))} vs prev. {period}d
+                </span>
+              ) : (
+                <p className="text-sm text-gray-500">+{period} days</p>
+              )}
+            </div>
           </div>
 
           <div className="card p-6">
@@ -206,9 +258,28 @@ export default function DashboardPage() {
             <p className="text-2xl font-bold text-gray-900">
               {data ? formatCurrency(data.metrics.totalProfit) : '$0.00'}
             </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {data ? formatPercent(data.metrics.averageMargin) : '0%'} margin
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {data && data.comparison.profitChangePct !== null ? (
+                <span
+                  className={`text-xs font-medium flex items-center gap-0.5 ${
+                    data.comparison.profitChangePct >= 0
+                      ? 'text-brand-600'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {data.comparison.profitChangePct >= 0 ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  {formatPercent(Math.abs(data.comparison.profitChangePct))} vs prev. {period}d
+                </span>
+              ) : (
+                <p className="text-sm text-gray-500 mt-1">
+                  {formatPercent(data?.metrics.averageMargin ?? 0)} margin
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="card p-6">
@@ -219,9 +290,28 @@ export default function DashboardPage() {
             <p className="text-2xl font-bold text-gray-900">
               {data?.metrics.totalOrders || 0}
             </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Avg: {data ? formatCurrency(data.metrics.averageOrderValue) : '$0.00'}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {data && data.comparison.ordersChangePct !== null ? (
+                <span
+                  className={`text-xs font-medium flex items-center gap-0.5 ${
+                    data.comparison.ordersChangePct >= 0
+                      ? 'text-brand-600'
+                      : 'text-red-600'
+                  }`}
+                >
+                  {data.comparison.ordersChangePct >= 0 ? (
+                    <TrendingUp className="h-3 w-3" />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" />
+                  )}
+                  {formatPercent(Math.abs(data.comparison.ordersChangePct))} vs prev. {period}d
+                </span>
+              ) : (
+                <p className="text-sm text-gray-500 mt-1">
+                  Avg: {data ? formatCurrency(data.metrics.averageOrderValue) : '$0.00'}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="card p-6">
@@ -253,8 +343,8 @@ export default function DashboardPage() {
                   />
                   <YAxis tickFormatter={(value) => `$${value}`} />
                   <Tooltip
-                    formatter={(value: number) => formatCurrency(value)}
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    formatter={(value) => formatCurrency(Number(value))}
+                    labelFormatter={(date) => new Date(String(date)).toLocaleDateString()}
                   />
                   <Line
                     type="monotone"
@@ -294,13 +384,64 @@ export default function DashboardPage() {
                   />
                   <YAxis />
                   <Tooltip
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) => new Date(String(date)).toLocaleDateString()}
                   />
                   <Bar dataKey="orders" fill="#16a34a" name="Orders" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+
+        {/* Top Products */}
+        <div className="card mb-8">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold">Top Products by Profit</h3>
+          </div>
+          {topProducts.length === 0 ? (
+            <div className="p-8 text-center text-gray-500 text-sm">
+              No product-level data yet. Sync a store to see which products drive your
+              profit.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {topProducts.map((product, index) => {
+                const maxRevenue = Math.max(
+                  ...topProducts.map((p) => p.revenue),
+                  1
+                );
+                return (
+                  <div key={product.id} className="px-6 py-4 flex items-center gap-4">
+                    <span className="w-6 text-sm font-semibold text-gray-400">
+                      {index + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {product.title}
+                        </p>
+                        <p className="text-sm text-brand-600 font-medium">
+                          {formatCurrency(product.profit)}
+                        </p>
+                      </div>
+                      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-brand-500 rounded-full"
+                          style={{ width: `${(product.revenue / maxRevenue) * 100}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between mt-1 text-xs text-gray-500">
+                        <span>
+                          {formatCurrency(product.revenue)} revenue · {product.units} sold
+                        </span>
+                        <span>{formatPercent(product.margin)} margin</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Recent Orders */}
@@ -380,85 +521,111 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Connect Store Modal */}
-        {showConnectModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="flex justify-between items-center p-6 border-b">
-                <h3 className="text-lg font-semibold">Connect Your Store</h3>
-                <button
-                  onClick={() => setShowConnectModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="p-6">
-                <p className="text-sm text-gray-600 mb-4">
-                  Connect your Store, Amazon, or other e-commerce store to import orders
-                  and automatically calculate your true profit margins.
+        {/* Insights: break-even & projections */}
+        {data && (
+          <div className="card mt-8 p-6">
+            <h3 className="text-lg font-semibold mb-1">Insights</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Break-even planning based on this period's {period}-day average margin.
+            </p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monthly fixed costs ($)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={fixedCosts}
+                  onChange={(e) => setFixedCosts(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
+                />
+                <label className="block text-sm font-medium text-gray-700 mb-1 mt-4">
+                  Monthly growth rate (%)
+                </label>
+                <input
+                  type="number"
+                  step="1"
+                  value={growthRate}
+                  onChange={(e) => setGrowthRate(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
+                />
+                <p className="text-xs text-gray-400 mt-3">
+                  Base profit for projections: {formatCurrency(data.metrics.totalProfit)}{' '}
+                  over the last {period} days.
                 </p>
+              </div>
 
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!shopUrl) return;
-
-                    try {
-                      const response = await fetch(`/api/shopify?shop=${encodeURIComponent(shopUrl)}`, {
-                        method: 'GET',
-                      });
-
-                      const result = await response.json();
-                      if (result.authUrl) {
-                        window.location.href = result.authUrl;
-                      }
-                    } catch (error) {
-                      console.error('Failed to initiate store connection:', error);
-                    }
-                  }}
-                >
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Platform
-                    </label>
-                    <select className="w-full border border-gray-300 rounded-md px-3 py-2">
-                      <option>Store</option>
-                      <option>Amazon</option>
-                      <option>Etsy</option>
-                      <option>WooCommerce</option>
-                    </select>
-                  </div>
-
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Store URL
-                    </label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
-                        type="text"
-                        value={shopUrl}
-                        onChange={(e) => setShopUrl(e.target.value)}
-                        placeholder="your-store.myshopify.com"
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                        required
-                      />
+              <div className="lg:col-span-1">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Break-even monthly revenue
+                </h4>
+                {(() => {
+                  const fixed = parseFloat(fixedCosts) || 0;
+                  const breakEven = calculateBreakEven(fixed, data.metrics.averageMargin);
+                  if (!isFinite(breakEven)) {
+                    return (
+                      <p className="text-amber-700 text-sm bg-amber-50 border border-amber-200 rounded-md p-3">
+                        Your average margin is {formatPercent(data.metrics.averageMargin)} —
+                        at or below zero, so break-even can't be reached with the current
+                        cost structure. Raise prices or cut landed costs.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="bg-brand-50 border border-brand-200 rounded-md p-4">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(breakEven)}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        per month covers {formatCurrency(fixed)} of fixed costs at{' '}
+                        {formatPercent(data.metrics.averageMargin)} average margin.
+                      </p>
                     </div>
-                  </div>
+                  );
+                })()}
+              </div>
 
-                  <button
-                    type="submit"
-                    className="w-full btn-primary py-2"
-                  >
-                  <Store className="h-4 w-4 mr-2" />
-                  Connect Store
-                </button>
-                </form>
+              <div className="lg:col-span-1">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Projected monthly profit (next 6 months)
+                </h4>
+                <div className="h-40">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={projectProfit(
+                        data.metrics.totalProfit,
+                        parseFloat(growthRate) || 0,
+                        6
+                      ).map((value, i) => ({ month: `M${i + 1}`, profit: Math.round(value) }))}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis
+                        tickFormatter={(value) => `$${Math.round(Number(value) / 1000)}k`}
+                      />
+                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      <Line
+                        type="monotone"
+                        dataKey="profit"
+                        stroke="#16a34a"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        name="Projected profit"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
           </div>
         )}
+
+        <ConnectStoreModal
+          open={showConnectModal}
+          onClose={() => setShowConnectModal(false)}
+        />
       </main>
     </div>
   );

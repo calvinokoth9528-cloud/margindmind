@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,18 +16,73 @@ import {
   Shield,
   CreditCard,
   Save,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  KeyRound,
 } from 'lucide-react';
+import { PLANS } from '@/lib/stripe';
+
+interface SettingsData {
+  user: { id: string; email: string; name: string | null };
+  settings: {
+    emailNotifications: boolean;
+    orderAlerts: boolean;
+    weeklyReports: boolean;
+    marketingEmails: boolean;
+  };
+  subscription: {
+    plan: string;
+    status: string;
+    currentPeriodEnd: string | null;
+  } | null;
+}
+
+const NOTIFICATION_LABELS = [
+  { key: 'emailNotifications', label: 'Email notifications' },
+  { key: 'orderAlerts', label: 'Order alerts (new orders, sync issues)' },
+  { key: 'weeklyReports', label: 'Weekly profit summary' },
+  { key: 'marketingEmails', label: 'Product news & tips' },
+] as const;
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+
+  const [data, setData] = useState<SettingsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [notificationPrefs, setNotificationPrefs] = useState<
+    SettingsData['settings']
+  >({ emailNotifications: true, orderAlerts: true, weeklyReports: false, marketingEmails: false });
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState({
-    emailNotifications: true,
-    orderAlerts: true,
-    weeklyReports: false,
-    marketingEmails: false,
-  });
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Password form state
+  const [pwOpen, setPwOpen] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwError, setPwError] = useState('');
+
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const result = await response.json();
+        setData(result);
+        setName(result.user.name || '');
+        setNotificationPrefs(result.settings);
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -35,14 +90,100 @@ export default function SettingsPage() {
     }
   }, [status, router]);
 
+  useEffect(() => {
+    if (session) {
+      fetchSettings();
+    }
+  }, [session, fetchSettings]);
+
   const handleSave = async () => {
-    setSaving(true);
-    setTimeout(() => {
+    try {
+      setSaving(true);
+      setNotice(null);
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, settings: notificationPrefs }),
+      });
+
+      if (response.ok) {
+        setNotice({ type: 'success', text: 'Settings saved.' });
+        // Keep the session display name fresh for the dashboard greeting
+        await fetchSettings();
+      } else {
+        const result = await response.json();
+        setNotice({ type: 'error', text: result.error || 'Failed to save settings.' });
+      }
+    } catch (err) {
+      console.error('Save settings failed:', err);
+      setNotice({ type: 'error', text: 'Failed to save settings.' });
+    } finally {
       setSaving(false);
-    }, 1000);
+    }
   };
 
-  if (status === 'loading') {
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwNew !== pwConfirm) {
+      setPwError('New passwords do not match.');
+      return;
+    }
+    try {
+      setPwSaving(true);
+      setPwError('');
+      const response = await fetch('/api/settings/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: pwCurrent, newPassword: pwNew }),
+      });
+      const result = await response.json();
+
+      if (response.ok) {
+        setNotice({ type: 'success', text: 'Password changed successfully.' });
+        setPwOpen(false);
+        setPwCurrent('');
+        setPwNew('');
+        setPwConfirm('');
+      } else {
+        setPwError(result.error || 'Failed to change password.');
+      }
+    } catch (err) {
+      console.error('Password change failed:', err);
+      setPwError('Failed to change password.');
+    } finally {
+      setPwSaving(false);
+    }
+  };
+
+  const handleUpgrade = async (planId: string) => {
+    try {
+      setCheckoutLoading(planId);
+      setNotice(null);
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: planId }),
+      });
+      const result = await response.json();
+
+      if (response.ok && result.url) {
+        window.location.href = result.url;
+      } else {
+        const msg =
+          result.error === 'Stripe is not configured'
+            ? 'Stripe is not configured yet. Add your Stripe keys to enable upgrades.'
+            : result.error || 'Could not start checkout.';
+        setNotice({ type: 'error', text: msg });
+      }
+    } catch (err) {
+      console.error('Checkout failed:', err);
+      setNotice({ type: 'error', text: 'Could not start checkout.' });
+    } finally {
+      setCheckoutLoading(null);
+    }
+  };
+
+  if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
@@ -51,6 +192,10 @@ export default function SettingsPage() {
   }
 
   if (!session) return null;
+
+  const currentPlan = data?.subscription?.plan || 'FREE';
+  const paidPlanIds = ['STARTER', 'PRO', 'ENTERPRISE'];
+  const planOrder = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -115,6 +260,29 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
         </div>
 
+        {notice && (
+          <div
+            className={`card p-4 mb-6 flex items-center gap-2 ${
+              notice.type === 'success'
+                ? 'border-green-200 bg-green-50'
+                : 'border-red-200 bg-red-50'
+            }`}
+          >
+            {notice.type === 'success' ? (
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            )}
+            <p
+              className={`text-sm ${
+                notice.type === 'success' ? 'text-green-700' : 'text-red-700'
+              }`}
+            >
+              {notice.text}
+            </p>
+          </div>
+        )}
+
         <div className="space-y-6 max-w-3xl">
           {/* Profile Section */}
           <div className="card p-6">
@@ -129,7 +297,8 @@ export default function SettingsPage() {
                 </label>
                 <input
                   type="text"
-                  defaultValue={session.user?.name || ''}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
                 />
               </div>
@@ -139,9 +308,11 @@ export default function SettingsPage() {
                 </label>
                 <input
                   type="email"
-                  defaultValue={session.user?.email || ''}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
+                  value={data?.user.email || ''}
+                  disabled
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500"
                 />
+                <p className="text-xs text-gray-400 mt-1">Email changes coming soon.</p>
               </div>
             </div>
           </div>
@@ -153,40 +324,27 @@ export default function SettingsPage() {
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
             </div>
             <div className="space-y-3">
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Email notifications</span>
-                <input
-                  type="checkbox"
-                  checked={settings.emailNotifications}
-                  onChange={(e) =>
-                    setSettings({ ...settings, emailNotifications: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                />
-              </label>
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Order alerts</span>
-                <input
-                  type="checkbox"
-                  checked={settings.orderAlerts}
-                  onChange={(e) =>
-                    setSettings({ ...settings, orderAlerts: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                />
-              </label>
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">Weekly reports</span>
-                <input
-                  type="checkbox"
-                  checked={settings.weeklyReports}
-                  onChange={(e) =>
-                    setSettings({ ...settings, weeklyReports: e.target.checked })
-                  }
-                  className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                />
-              </label>
+              {NOTIFICATION_LABELS.map((item) => (
+                <label key={item.key} className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700">{item.label}</span>
+                  <input
+                    type="checkbox"
+                    checked={notificationPrefs[item.key]}
+                    onChange={(e) =>
+                      setNotificationPrefs((prev) => ({
+                        ...prev,
+                        [item.key]: e.target.checked,
+                      }))
+                    }
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                </label>
+              ))}
             </div>
+            <p className="text-xs text-gray-400 mt-3">
+              Preferences are saved per account. Email delivery will activate once SMTP is
+              configured.
+            </p>
           </div>
 
           {/* Billing Section */}
@@ -195,12 +353,74 @@ export default function SettingsPage() {
               <CreditCard className="h-5 w-5 text-gray-400" />
               <h3 className="text-lg font-semibold text-gray-900">Billing</h3>
             </div>
-            <div className="text-sm text-gray-600 mb-4">
-              Current plan: <span className="font-semibold text-gray-900">Free</span>
+
+            <div className="mb-4 p-4 bg-gray-50 rounded-md flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">
+                  Current plan:{' '}
+                  <span className="font-semibold text-gray-900 capitalize">
+                    {currentPlan.toLowerCase()}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Status:{' '}
+                  <span className="capitalize">
+                    {data?.subscription?.status || 'active'}
+                  </span>
+                  {data?.subscription?.currentPeriodEnd
+                    ? ` · renews ${new Date(
+                        data.subscription.currentPeriodEnd
+                      ).toLocaleDateString()}`
+                    : ''}
+                </p>
+              </div>
+              <Sparkles className="h-6 w-6 text-brand-500" />
             </div>
-            <Link href="/dashboard" className="btn-primary text-sm">
-              View Billing Details
-            </Link>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              {paidPlanIds.map((planId) => {
+                const plan = PLANS[planId];
+                const isCurrent = planId === currentPlan;
+                const isDowngrade =
+                  planOrder.indexOf(planId) < planOrder.indexOf(currentPlan);
+                return (
+                  <button
+                    key={planId}
+                    onClick={() => handleUpgrade(planId)}
+                    disabled={isCurrent || checkoutLoading !== null}
+                    className={`p-4 rounded-lg border text-left transition-colors ${
+                      isCurrent
+                        ? 'border-brand-500 bg-brand-50 cursor-default'
+                        : 'border-gray-200 hover:border-brand-300 hover:bg-brand-50/50 disabled:opacity-50'
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-900">{plan.name}</p>
+                    <p className="text-sm text-gray-500">
+                      ${plan.price}
+                      {plan.price > 0 ? '/month' : ''}
+                    </p>
+                    {isCurrent && (
+                      <p className="text-xs text-brand-600 font-medium mt-1">
+                        ✓ Current plan
+                      </p>
+                    )}
+                    {!isCurrent &&
+                      (isDowngrade ? (
+                        <p className="text-xs text-gray-500 mt-1">Switch plan</p>
+                      ) : (
+                        <p className="text-xs text-brand-600 font-medium mt-1">
+                          {checkoutLoading === planId ? 'Redirecting…' : 'Upgrade'}
+                        </p>
+                      ))}
+                  </button>
+                );
+              })}
+            </div>
+
+            <p className="text-xs text-gray-400">
+              Upgrades run through Stripe checkout. Billing management (invoices, cancel)
+              is available in the Stripe customer portal once keys are configured.
+            </p>
           </div>
 
           {/* Security Section */}
@@ -209,23 +429,87 @@ export default function SettingsPage() {
               <Shield className="h-5 w-5 text-gray-400" />
               <h3 className="text-lg font-semibold text-gray-900">Security</h3>
             </div>
-            <div className="space-y-3">
-              <button className="btn-secondary text-left w-full">
+
+            {!pwOpen ? (
+              <button
+                onClick={() => setPwOpen(true)}
+                className="btn-secondary text-left w-full"
+              >
+                <KeyRound className="h-4 w-4 mr-2" />
                 Change Password
               </button>
-              <button className="btn-secondary text-left w-full">
-                Two-Factor Authentication
-              </button>
-            </div>
+            ) : (
+              <form onSubmit={handleChangePassword} className="space-y-3 max-w-md">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Current password
+                  </label>
+                  <input
+                    type="password"
+                    value={pwCurrent}
+                    onChange={(e) => setPwCurrent(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New password
+                  </label>
+                  <input
+                    type="password"
+                    value={pwNew}
+                    onChange={(e) => setPwNew(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
+                    required
+                    minLength={8}
+                    placeholder="At least 8 characters"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Confirm new password
+                  </label>
+                  <input
+                    type="password"
+                    value={pwConfirm}
+                    onChange={(e) => setPwConfirm(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
+                    required
+                    minLength={8}
+                  />
+                </div>
+                {pwError && <p className="text-sm text-red-600">{pwError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={pwSaving}
+                    className="btn-primary text-sm disabled:opacity-50"
+                  >
+                    {pwSaving ? 'Updating…' : 'Update Password'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPwOpen(false);
+                      setPwError('');
+                    }}
+                    className="btn-secondary text-sm"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <p className="text-xs text-gray-400 mt-3">
+              Two-factor authentication is on the roadmap.
+            </p>
           </div>
 
           {/* Save Button */}
           <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="btn-primary"
-            >
+            <button onClick={handleSave} disabled={saving} className="btn-primary">
               {saving ? (
                 <>Saving...</>
               ) : (

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { generateShopifyAuthUrl, exchangeShopifyCode } from '@/lib/shopify';
+
+const STATE_COOKIE = 'shopify_oauth_state';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || '';
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || '';
@@ -31,7 +34,8 @@ export async function GET(request: NextRequest) {
       shop = `${shop}.myshopify.com`;
     }
 
-    // Generate nonce for security
+    // Generate nonce for security and store it in an httpOnly cookie so the
+    // callback can verify it (prevents OAuth CSRF).
     const nonce = crypto.randomUUID();
     const redirectUri = `${SHOPIFY_APP_URL}/api/shopify/callback`;
 
@@ -42,6 +46,14 @@ export async function GET(request: NextRequest) {
       redirectUri,
       nonce
     );
+
+    const cookieStore = await cookies();
+    cookieStore.set(STATE_COOKIE, nonce, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 10, // 10 minutes
+    });
 
     return NextResponse.json({ authUrl, shop });
   } catch (error) {

@@ -5,7 +5,7 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 // Only initialize Stripe if we have a valid key
 const stripe = stripeSecretKey && !stripeSecretKey.includes('placeholder')
   ? new Stripe(stripeSecretKey, {
-      apiVersion: '2023-10-16',
+      apiVersion: '2026-08-26.dahlia',
       typescript: true,
     })
   : null;
