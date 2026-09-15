@@ -3,7 +3,18 @@
 // export columns like Name, Paid at, Lineitem quantity/name/sku/price, etc.).
 import { parseNumber, parseDate } from './csv.ts';
 import type { CsvRow } from './csv.ts';
-import { calculateShopifyFee } from './shopify.ts';
+import { calculateProviderFee, roundMoney } from './fees.ts';
+
+export interface ImportOptions {
+  /** Payment-provider id selecting the fee profile (defaults to 'other'). */
+  paymentProvider?: string;
+  /** Custom fee overrides (Shop custom fee); beats paymentProvider when both set. */
+  customFee?: { feePercent?: number | null; feeFixed?: number | null } | null;
+  /** Tax rate (%) applied to revenue for pre/post-tax profit. */
+  taxRate?: number;
+}
+
+export const DEFAULT_IMPORT_OPTIONS: ImportOptions = { paymentProvider: 'other' };
 
 export interface ImportLineItem {
   productTitle: string;
@@ -21,6 +32,7 @@ export interface ImportOrder {
   totalRevenue: number;
   shippingCost: number;
   transactionFee: number;
+  taxAmount: number;
   adSpend: number;
   totalCost: number;
   netProfit: number;
@@ -149,10 +161,17 @@ function extractRow(row: CsvRow, headers: string[], index: number): RowFields {
 // Public build function
 // ---------------------------------------------------------------------------
 
-export function buildImportFromRows(rows: CsvRow[]): BuildImportResult {
+export function buildImportFromRows(
+  rows: CsvRow[],
+  options: ImportOptions = DEFAULT_IMPORT_OPTIONS
+): BuildImportResult {
   if (rows.length === 0) {
     return { orders: [], skipped: [] };
   }
+
+  const feeProvider = options.paymentProvider || 'other';
+  const customFee = options.customFee ?? null;
+  const taxRate = options.taxRate ?? 0;
 
   const headers = Object.keys(rows[0]);
   const skipped: SkippedRow[] = [];
@@ -237,10 +256,16 @@ export function buildImportFromRows(rows: CsvRow[]): BuildImportResult {
       0
     );
     const shippingCost = first.shipping;
-    const transactionFee = calculateShopifyFee(totalRevenue);
+    const transactionFee = calculateProviderFee(totalRevenue, feeProvider, customFee);
+    const taxAmount = totalRevenue * (taxRate / 100);
     const adSpend = first.adSpend;
     const netProfit =
-      totalRevenue - totalCost - shippingCost - transactionFee - adSpend;
+      totalRevenue -
+      totalCost -
+      shippingCost -
+      transactionFee -
+      taxAmount -
+      adSpend;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     let externalId = key;
@@ -258,13 +283,14 @@ export function buildImportFromRows(rows: CsvRow[]): BuildImportResult {
       orderNumber,
       orderDate: first.orderDate as Date,
       status: first.status,
-      totalRevenue: Math.round(totalRevenue * 100) / 100,
-      shippingCost: Math.round(shippingCost * 100) / 100,
-      transactionFee: Math.round(transactionFee * 100) / 100,
-      adSpend: Math.round(adSpend * 100) / 100,
-      totalCost: Math.round(totalCost * 100) / 100,
-      netProfit: Math.round(netProfit * 100) / 100,
-      profitMargin: Math.round(profitMargin * 100) / 100,
+      totalRevenue: roundMoney(totalRevenue),
+      shippingCost: roundMoney(shippingCost),
+      transactionFee: roundMoney(transactionFee),
+      taxAmount: roundMoney(taxAmount),
+      adSpend: roundMoney(adSpend),
+      totalCost: roundMoney(totalCost),
+      netProfit: roundMoney(netProfit),
+      profitMargin: roundMoney(profitMargin),
       items,
     });
   }

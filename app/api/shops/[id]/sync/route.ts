@@ -86,7 +86,8 @@ export async function POST(
     let ordersUpdated = 0;
 
     for (const so of shopifyOrders) {
-      const transformed = transformShopifyOrder(so, productCosts);
+      // Recompute fees with the shop's payment-provider profile on every sync
+      const transformed = transformShopifyOrder(so, productCosts, shop.paymentProvider);
 
       const existing = await prisma.order.findUnique({
         where: {

@@ -11,6 +11,8 @@ shipping, transaction fees, and ad spend.
 - **Auth:** NextAuth (credentials, JWT sessions) with bcrypt
 - **Payments:** Stripe subscriptions (checkout + webhooks)
 - **Store data:** Shopify Admin API (OAuth, orders, products) **or CSV import** (template + Shopify export columns auto-detected)
+- **Multi-currency:** per-store country/currency/payment-provider with fee profiles and VAT/sales-tax defaults
+- **Ad spend:** Meta Ads / Google Ads daily-spend CSV import, split across each day's orders
 - **Charts:** Recharts
 - **Styling:** Tailwind CSS v4
 - **Tests:** Node's built-in test runner (`node --test`)
@@ -80,14 +82,22 @@ prisma/schema.prisma    User, Subscription, Shop, Product, Order, OrderItem
 
 ## Key Design Decisions
 
-- **Profit formula:** `netProfit = revenue − productCost − shipping − (revenue × 2.9% + $0.30) − adSpend`.
-  Transaction fees follow Shopify's standard rate per plan; ad spend is imported as `0`
-  until an ad-platform integration is wired up.
-- **Period comparison:** the dashboard compares the selected window against the identical
-  window immediately before it (`comparePeriods`), showing deltas with `null` (no baseline)
-  handled gracefully.
+- **Profit formula:** `netProfit = revenue − productCost − shipping − transactionFee − tax − adSpend`.
+  Transaction fees come from the shop's payment-provider profile (Shopify Payments, Stripe,
+  PayPal, iDEAL, …) or a custom percent + fixed override; tax uses the shop's rate or the
+  country default (e.g. DE 19% VAT, US 7% sales tax).
+- **Refunds:** a full or partial refund keeps revenue only for the unrefunded portion while
+  costs (product, shipping, gateway fee, tax, ads) stay spent — margins reflect reality.
+  Refunded orders are excluded from period trends; refunds are summarized separately.
+- **Ad spend:** daily CSV exports from Meta Ads ("Amount spent") or Google Ads ("Cost") are
+  upserted into `AdSpendDay`, then each day's spend is split evenly across that day's orders.
+- **Period comparison:** the dashboard compares the selected window (presets or custom
+  from/to range) against the identical window immediately before it (`comparePeriods`).
 - **Product analytics:** per-product profit is aggregated from order line items
   (`aggregateProductMetrics`) — the top-5 by profit are ranked on the dashboard.
+- **Per-store isolation:** dashboard/orders accept a `shopId` filter so each store's
+  metrics, currency, and fee profile can be viewed in isolation.
+- **CSV export:** filtered orders/products download via `GET /api/export/csv`.
 - **OAuth security:** the Shopify flow stores a random nonce in an httpOnly cookie when
   initiating auth and verifies it on callback (CSRF protection). The callback saves the
   access token against the logged-in user's account.

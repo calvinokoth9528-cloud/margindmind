@@ -17,14 +17,32 @@ import {
   AlertCircle,
   CheckCircle2,
   FileSpreadsheet,
+  Pencil,
+  X,
+  Check,
+  Megaphone,
 } from 'lucide-react';
 import ConnectStoreModal from '@/components/ConnectStoreModal';
 import ImportCsvModal from '@/components/ImportCsvModal';
+import AdSpendModal from '@/components/AdSpendModal';
+import {
+  COUNTRIES,
+  CURRENCIES,
+  FEE_PROFILES,
+  getFeeProfile,
+  defaultTaxRateForCountry,
+} from '@/lib/fees';
 
 interface Shop {
   id: string;
   shopUrl: string;
   platform: string;
+  country: string;
+  currency: string;
+  paymentProvider: string;
+  feePercent: number | null;
+  feeFixed: number | null;
+  taxRate: number | null;
   lastSync: string | null;
 }
 
@@ -50,8 +68,18 @@ function StoresPageContent() {
   const [loading, setLoading] = useState(true);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showAdSpendModal, setShowAdSpendModal] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingShopId, setEditingShopId] = useState<string | null>(null);
+  const [editCountry, setEditCountry] = useState('US');
+  const [editCurrency, setEditCurrency] = useState('USD');
+  const [editProvider, setEditProvider] = useState('other');
+  const [useCustomFee, setUseCustomFee] = useState(false);
+  const [editFeePercent, setEditFeePercent] = useState('');
+  const [editFeeFixed, setEditFeeFixed] = useState('');
+  const [editTaxRate, setEditTaxRate] = useState('');
+  const [savingShopId, setSavingShopId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,6 +157,64 @@ function StoresPageContent() {
     } finally {
       setSyncingId(null);
       fetchShops();
+    }
+  };
+
+  const startEditShop = (shop: Shop) => {
+    setEditingShopId(shop.id);
+    setEditCountry(shop.country || 'US');
+    setEditCurrency(shop.currency || 'USD');
+    setEditProvider(shop.paymentProvider || 'other');
+    const hasCustomFee = shop.feePercent != null && shop.feeFixed != null;
+    setUseCustomFee(hasCustomFee);
+    setEditFeePercent(hasCustomFee ? String(shop.feePercent) : '');
+    setEditFeeFixed(hasCustomFee ? String(shop.feeFixed) : '');
+    setEditTaxRate(
+      shop.taxRate != null
+        ? String(shop.taxRate)
+        : String(defaultTaxRateForCountry(shop.country || 'US'))
+    );
+    setNotice(null);
+  };
+
+  const handleSaveShopSettings = async (shop: Shop) => {
+    try {
+      setSavingShopId(shop.id);
+      setNotice(null);
+      const custom = useCustomFee && editFeePercent !== '' && editFeeFixed !== '';
+      const response = await fetch(`/api/shops/${shop.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          country: editCountry,
+          currency: editCurrency,
+          paymentProvider: editProvider,
+          feePercent: custom ? parseFloat(editFeePercent) : null,
+          feeFixed: custom ? parseFloat(editFeeFixed) : null,
+          taxRate: editTaxRate === '' ? null : parseFloat(editTaxRate),
+          recomputeFees: true,
+        }),
+      });
+      const result = await response.json();
+
+      if (response.ok) {
+        const profile = custom
+          ? { label: 'custom rate', percent: parseFloat(editFeePercent), fixed: parseFloat(editFeeFixed) }
+          : getFeeProfile(editProvider);
+        setNotice({
+          type: 'success',
+          text: `Store updated — fees ${profile.label}: ${profile.percent}% + ${profile.fixed.toFixed(2)}, tax ${editTaxRate}% — historical orders recomputed.`,
+        });
+        setEditingShopId(null);
+        fetchShops();
+      } else {
+        setNotice({ type: 'error', text: result.error || 'Failed to update store.' });
+      }
+    } catch (err) {
+      console.error('Store update failed:', err);
+      setNotice({ type: 'error', text: 'Failed to update store. Please try again.' });
+    } finally {
+      setSavingShopId(null);
     }
   };
 
@@ -232,6 +318,14 @@ function StoresPageContent() {
           </div>
           <div className="flex gap-3">
             <button
+              onClick={() => setShowAdSpendModal(true)}
+              className="btn-secondary"
+              disabled={shops.length === 0}
+            >
+              <Megaphone className="h-4 w-4 mr-2" />
+              Ad Spend
+            </button>
+            <button
               onClick={() => setShowImportModal(true)}
               className="btn-secondary"
             >
@@ -309,12 +403,148 @@ function StoresPageContent() {
                     <div className="bg-brand-100 rounded-lg p-3">
                       <Globe className="h-8 w-8 text-brand-600" />
                     </div>
+                    {editingShopId === shop.id ? (
+                      <div className="flex-1 mr-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Country
+                            </label>
+                            <select
+                              value={editCountry}
+                              onChange={(e) => setEditCountry(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                            >
+                              {COUNTRIES.map((c) => (
+                                <option key={c.code} value={c.code}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Currency
+                            </label>
+                            <select
+                              value={editCurrency}
+                              onChange={(e) => setEditCurrency(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                            >
+                              {CURRENCIES.map((c) => (
+                                <option key={c.code} value={c.code}>
+                                  {c.code} — {c.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Payment provider
+                            </label>
+                            <select
+                              value={editProvider}
+                              onChange={(e) => setEditProvider(e.target.value)}
+                              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                            >
+                              {Object.values(FEE_PROFILES).map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.label} ({p.percent}% + {p.fixed.toFixed(2)})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                          <div className="sm:col-span-3">
+                            <label className="flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={useCustomFee}
+                                onChange={(e) => setUseCustomFee(e.target.checked)}
+                                className="rounded border-gray-300"
+                              />
+                              Use custom fee rate (overrides the provider preset)
+                            </label>
+                          </div>
+                          {useCustomFee && (
+                            <>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Fee percent (%)
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editFeePercent}
+                                  onChange={(e) => setEditFeePercent(e.target.value)}
+                                  placeholder="2.9"
+                                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1">
+                                  Fixed fee per order
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={editFeeFixed}
+                                  onChange={(e) => setEditFeeFixed(e.target.value)}
+                                  placeholder="0.30"
+                                  className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                                />
+                              </div>
+                            </>
+                          )}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-500 mb-1">
+                              Tax rate (%)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              value={editTaxRate}
+                              onChange={(e) => setEditTaxRate(e.target.value)}
+                              placeholder={String(defaultTaxRateForCountry(editCountry))}
+                              className="w-full border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 mt-3">
+                          <button
+                            onClick={() => handleSaveShopSettings(shop)}
+                            disabled={savingShopId === shop.id}
+                            className="btn-primary text-sm py-1.5 px-3 disabled:opacity-50"
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            {savingShopId === shop.id ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => setEditingShopId(null)}
+                            className="btn-secondary text-sm py-1.5 px-3"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
                         {shop.shopUrl}
                       </h3>
                       <p className="text-sm text-gray-500 capitalize">
                         {shop.platform.toLowerCase()}
+                        {' · '}
+                        {shop.currency || 'USD'}
+                        {' · '}
+                        {getFeeProfile(shop.paymentProvider).label}
                       </p>
                       {shop.lastSync ? (
                         <p className="text-sm text-gray-500 mt-1">
@@ -324,9 +554,19 @@ function StoresPageContent() {
                         <p className="text-sm text-gray-400 mt-1">Never synced</p>
                       )}
                     </div>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
+                    {editingShopId !== shop.id && (
+                      <button
+                        onClick={() => startEditShop(shop)}
+                        className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-50"
+                        aria-label={`Edit settings for ${shop.shopUrl}`}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
                     {shop.platform === 'SHOPIFY' ? (
                       <button
                         onClick={() => handleSync(shop)}
@@ -383,6 +623,12 @@ function StoresPageContent() {
         <ImportCsvModal
           open={showImportModal}
           onClose={() => setShowImportModal(false)}
+          onImported={fetchShops}
+        />
+        <AdSpendModal
+          open={showAdSpendModal}
+          shops={shops.map((s) => ({ id: s.id, shopUrl: s.shopUrl }))}
+          onClose={() => setShowAdSpendModal(false)}
           onImported={fetchShops}
         />
       </main>

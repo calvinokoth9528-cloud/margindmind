@@ -19,7 +19,7 @@ describe('buildImportFromRows', () => {
   it('imports template rows into orders with correct profit math', () => {
     // Order #1001: 2 x $49.99 Premium Widget (cost $15) + $5.99 shipping + $12.50 ads
     const rows = parseCsv(buildTemplateCsv());
-    const { orders, skipped } = buildImportFromRows(rows);
+    const { orders, skipped } = buildImportFromRows(rows, { paymentProvider: 'shopify' });
 
     assert.equal(skipped.length, 0);
     assert.equal(orders.length, 2);
@@ -94,6 +94,29 @@ describe('buildImportFromRows', () => {
     const { orders } = buildImportFromRows(parseCsv(csv));
     assert.equal(orders[0].totalRevenue, 30);
     assert.equal(orders[0].totalCost, 12);
+  });
+
+  it('uses the selected payment provider fee profile', () => {
+    const csv = [
+      'Order ID,Order Date,Product Title,Quantity,Unit Price,Unit Cost',
+      'X1,2026-09-01,Widget,1,100,40',
+    ].join('\n');
+
+    // Shopify Payments: 2.9% + 0.30 → 3.20 fee on $100
+    const shopify = buildImportFromRows(parseCsv(csv), { paymentProvider: 'shopify' });
+    assert.ok(Math.abs(shopify.orders[0].transactionFee - 3.2) < 1e-9);
+
+    // PayPal: 3.49% + 0.49 → 3.98 fee on $100
+    const paypal = buildImportFromRows(parseCsv(csv), { paymentProvider: 'paypal' });
+    assert.ok(Math.abs(paypal.orders[0].transactionFee - 3.98) < 1e-9);
+
+    // No processing: zero fee
+    const none = buildImportFromRows(parseCsv(csv), { paymentProvider: 'none' });
+    assert.equal(none.orders[0].transactionFee, 0);
+
+    // Default (no options) behaves like the 'other' profile
+    const fallback = buildImportFromRows(parseCsv(csv));
+    assert.ok(Math.abs(fallback.orders[0].transactionFee - 3.2) < 1e-9);
   });
 
   it('skips empty rows and reports unknown rows', () => {

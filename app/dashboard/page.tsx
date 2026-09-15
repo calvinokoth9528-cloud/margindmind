@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -15,6 +15,7 @@ import {
   Plus,
   RefreshCw,
   Globe,
+  Calendar,
 } from 'lucide-react';
 import ConnectStoreModal from '@/components/ConnectStoreModal';
 import {
@@ -40,6 +41,8 @@ interface DashboardData {
     totalOrders: number;
     totalRevenue: number;
     totalProfit: number;
+    totalTax?: number;
+    totalRefunds?: number;
     averageOrderValue: number;
     averageMargin: number;
     dailyMetrics: Array<{
@@ -72,6 +75,16 @@ interface DashboardData {
     date: string;
   }>;
   shopCount: number;
+  currency?: string;
+  refundSummary?: {
+    count: number;
+    total: number;
+  };
+}
+
+interface ShopOption {
+  id: string;
+  shopUrl: string;
 }
 
 export default function DashboardPage() {
@@ -84,6 +97,16 @@ export default function DashboardPage() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [fixedCosts, setFixedCosts] = useState('2000');
   const [growthRate, setGrowthRate] = useState('5');
+  const [shops, setShops] = useState<ShopOption[]>([]);
+  const [shopId, setShopId] = useState('');
+  const [useCustomRange, setUseCustomRange] = useState(false);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+
+  // Amounts are displayed in the currency reported by the API
+  // (most common across the user's shops).
+  const currency = data?.currency || 'USD';
+  const fmt = (amount: number) => formatCurrency(amount, currency);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -91,17 +114,35 @@ export default function DashboardPage() {
     }
   }, [status, router]);
 
+  const fetchShops = useCallback(async () => {
+    try {
+      const response = await fetch('/api/shops');
+      if (response.ok) {
+        const result = await response.json();
+        setShops(result.shops || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch shops:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (session) {
       fetchDashboardData();
+      fetchShops();
     }
-  }, [session, period]);
+  }, [session, period, shopId, useCustomRange, fromDate, toDate]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/dashboard?period=${period}`);
+      const params = new URLSearchParams();
+      if (useCustomRange && fromDate) params.set('from', fromDate);
+      if (useCustomRange && toDate) params.set('to', toDate);
+      if (!params.has('from') && !params.has('to')) params.set('period', period);
+      if (shopId) params.set('shopId', shopId);
+      const response = await fetch(`/api/dashboard?${params.toString()}`);
       if (response.ok) {
         const result = await response.json();
         setData(result);
@@ -183,17 +224,66 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
             <p className="text-gray-600">Welcome back, {session.user?.name || 'there'}!</p>
           </div>
-          <div className="flex gap-3">
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          <div className="flex flex-wrap gap-3 items-center">
+            {useCustomRange ? (
+              <>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="border border-gray-300 rounded-md px-2 py-2 text-sm"
+                />
+                <span className="text-gray-400 text-sm">to</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="border border-gray-300 rounded-md px-2 py-2 text-sm"
+                />
+                <button
+                  onClick={() => {
+                    setUseCustomRange(false);
+                    setFromDate('');
+                    setToDate('');
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Use presets
+                </button>
+              </>
+            ) : (
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last year</option>
+              </select>
+            )}
+            <button
+              onClick={() => setUseCustomRange(!useCustomRange)}
+              className={`btn-secondary py-2 ${useCustomRange ? 'border-brand-400 text-brand-700' : ''}`}
+              title="Custom date range"
             >
-              <option value="7">Last 7 days</option>
-              <option value="30">Last 30 days</option>
-              <option value="90">Last 90 days</option>
-              <option value="365">Last year</option>
-            </select>
+              <Calendar className="h-4 w-4" />
+            </button>
+            {shops.length > 1 && (
+              <select
+                value={shopId}
+                onChange={(e) => setShopId(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">All stores</option>
+                {shops.map((shop) => (
+                  <option key={shop.id} value={shop.id}>
+                    {shop.shopUrl}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               onClick={fetchDashboardData}
               className="btn-secondary"
@@ -226,7 +316,7 @@ export default function DashboardPage() {
               <DollarSign className="h-5 w-5 text-gray-400" />
             </div>
             <p className="text-2xl font-bold text-gray-900">
-              {data ? formatCurrency(data.metrics.totalRevenue) : '$0.00'}
+              {data ? fmt(data.metrics.totalRevenue) : '$0.00'}
             </p>
             <div className="flex items-center gap-2 mt-1">
               {data && data.comparison.revenueChangePct !== null ? (
@@ -256,7 +346,7 @@ export default function DashboardPage() {
               <TrendingUp className="h-5 w-5 text-brand-500" />
             </div>
             <p className="text-2xl font-bold text-gray-900">
-              {data ? formatCurrency(data.metrics.totalProfit) : '$0.00'}
+              {data ? fmt(data.metrics.totalProfit) : '$0.00'}
             </p>
             <div className="flex items-center gap-2 mt-1">
               {data && data.comparison.profitChangePct !== null ? (
@@ -308,7 +398,7 @@ export default function DashboardPage() {
                 </span>
               ) : (
                 <p className="text-sm text-gray-500 mt-1">
-                  Avg: {data ? formatCurrency(data.metrics.averageOrderValue) : '$0.00'}
+                  Avg: {data ? fmt(data.metrics.averageOrderValue) : '$0.00'}
                 </p>
               )}
             </div>
@@ -343,7 +433,7 @@ export default function DashboardPage() {
                   />
                   <YAxis tickFormatter={(value) => `$${value}`} />
                   <Tooltip
-                    formatter={(value) => formatCurrency(Number(value))}
+                    formatter={(value) => fmt(Number(value))}
                     labelFormatter={(date) => new Date(String(date)).toLocaleDateString()}
                   />
                   <Line
@@ -393,6 +483,27 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Refund & tax summary */}
+        {data?.refundSummary && (data.refundSummary.count > 0 || (data.metrics.totalTax ?? 0) > 0) && (
+          <div className="card p-4 mb-8 flex flex-wrap gap-6 items-center">
+            <div>
+              <p className="text-sm text-gray-500">Tax collected (est.)</p>
+              <p className="text-lg font-semibold text-gray-900">
+                {fmt(data.metrics.totalTax ?? 0)}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Refunds</p>
+              <p className="text-lg font-semibold text-red-600">
+                {fmt(data.refundSummary.total)}
+                <span className="text-sm font-normal text-gray-500 ml-1">
+                  ({data.refundSummary.count} order{data.refundSummary.count === 1 ? '' : 's'})
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Top Products */}
         <div className="card mb-8">
           <div className="p-6 border-b border-gray-200">
@@ -421,7 +532,7 @@ export default function DashboardPage() {
                           {product.title}
                         </p>
                         <p className="text-sm text-brand-600 font-medium">
-                          {formatCurrency(product.profit)}
+                          {fmt(product.profit)}
                         </p>
                       </div>
                       <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -432,7 +543,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex justify-between mt-1 text-xs text-gray-500">
                         <span>
-                          {formatCurrency(product.revenue)} revenue · {product.units} sold
+                          {fmt(product.revenue)} revenue · {product.units} sold
                         </span>
                         <span>{formatPercent(product.margin)} margin</span>
                       </div>
@@ -490,10 +601,10 @@ export default function DashboardPage() {
                         {new Date(order.date).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        {formatCurrency(order.totalRevenue)}
+                        {fmt(order.totalRevenue)}
                       </td>
                       <td className="px-6 py-4 text-sm text-brand-600 font-medium">
-                        {formatCurrency(order.netProfit)}
+                        {fmt(order.netProfit)}
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <span
@@ -552,7 +663,7 @@ export default function DashboardPage() {
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-brand-500"
                 />
                 <p className="text-xs text-gray-400 mt-3">
-                  Base profit for projections: {formatCurrency(data.metrics.totalProfit)}{' '}
+                  Base profit for projections: {fmt(data.metrics.totalProfit)}{' '}
                   over the last {period} days.
                 </p>
               </div>
@@ -576,10 +687,10 @@ export default function DashboardPage() {
                   return (
                     <div className="bg-brand-50 border border-brand-200 rounded-md p-4">
                       <p className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(breakEven)}
+                        {fmt(breakEven)}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        per month covers {formatCurrency(fixed)} of fixed costs at{' '}
+                        per month covers {fmt(fixed)} of fixed costs at{' '}
                         {formatPercent(data.metrics.averageMargin)} average margin.
                       </p>
                     </div>
@@ -605,7 +716,7 @@ export default function DashboardPage() {
                       <YAxis
                         tickFormatter={(value) => `$${Math.round(Number(value) / 1000)}k`}
                       />
-                      <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                      <Tooltip formatter={(value) => fmt(Number(value))} />
                       <Line
                         type="monotone"
                         dataKey="profit"

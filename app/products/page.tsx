@@ -35,6 +35,7 @@ export default function ProductsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
+  const [currency, setCurrency] = useState('USD');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -75,7 +76,7 @@ export default function ProductsPage() {
         setEditingId(null);
         setNotice({
           type: 'success',
-          text: `Cost updated to ${formatCurrency(cost)} — ${result.ordersRecomputed} historical order${
+          text: `Cost updated to ${formatCurrency(cost, currency)} — ${result.ordersRecomputed} historical order${
             result.ordersRecomputed === 1 ? '' : 's'
           } recalculated.`,
         });
@@ -98,6 +99,7 @@ export default function ProductsPage() {
       if (response.ok) {
         const result = await response.json();
         setProducts(result.products || []);
+        if (result.currency) setCurrency(result.currency);
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
@@ -121,6 +123,8 @@ export default function ProductsPage() {
   }
 
   if (!session) return null;
+
+  const fmt = (amount: number) => formatCurrency(amount, currency);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -215,7 +219,7 @@ export default function ProductsPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Price</span>
-                  <span className="text-gray-900">{formatCurrency(product.price)}</span>
+                  <span className="text-gray-900">{fmt(product.price)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-500">Cost</span>
@@ -249,7 +253,7 @@ export default function ProductsPage() {
                   ) : (
                     <span className="flex items-center gap-2">
                       <span className="text-gray-900">
-                        {formatCurrency(product.cost)}
+                        {fmt(product.cost)}
                       </span>
                       <button
                         onClick={() => {
@@ -266,7 +270,7 @@ export default function ProductsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Profit</span>
-                  <span className="text-brand-600 font-medium">{formatCurrency(product.profit)}</span>
+                  <span className="text-brand-600 font-medium">{fmt(product.profit)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Margin</span>

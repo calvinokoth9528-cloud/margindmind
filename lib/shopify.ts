@@ -1,6 +1,7 @@
 // Shopify API integration for MarginMind
 
 import crypto from 'crypto';
+import { calculateProviderFee } from './fees.ts';
 
 const SHOPIFY_API_VERSION = '2024-01';
 
@@ -135,6 +136,7 @@ export interface TransformedShopifyOrder {
   totalCost: number;
   shippingCost: number;
   transactionFee: number;
+  taxAmount: number;
   adSpend: number;
   netProfit: number;
   profitMargin: number;
@@ -143,10 +145,14 @@ export interface TransformedShopifyOrder {
   items: TransformedShopifyItem[];
 }
 
-// Transform Shopify order to our format
+// Transform Shopify order to our format.
+// `paymentProvider` selects the fee profile; `customFee` overrides it when set.
 export function transformShopifyOrder(
   shopifyOrder: ShopifyOrder,
-  productCosts: Map<string, number>
+  productCosts: Map<string, number>,
+  paymentProvider: string = 'shopify',
+  customFee?: { feePercent?: number | null; feeFixed?: number | null } | null,
+  taxRate: number = 0
 ): TransformedShopifyOrder {
   const totalRevenue = parseFloat(shopifyOrder.total_price);
   const shippingCost = parseFloat(shopifyOrder.total_shipping || '0');
@@ -158,8 +164,10 @@ export function transformShopifyOrder(
     totalProductCost += cost * item.quantity;
   });
 
-  const transactionFee = calculateShopifyFee(totalRevenue);
-  const netProfit = totalRevenue - totalProductCost - shippingCost - transactionFee;
+  const transactionFee = calculateProviderFee(totalRevenue, paymentProvider, customFee);
+  const taxAmount = totalRevenue * (taxRate / 100);
+  const netProfit =
+    totalRevenue - totalProductCost - shippingCost - transactionFee - taxAmount;
   const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
   return {
@@ -169,7 +177,8 @@ export function transformShopifyOrder(
     totalCost: totalProductCost,
     shippingCost,
     transactionFee,
-    adSpend: 0, // Would need to fetch from ad platforms
+    taxAmount,
+    adSpend: 0, // Populated from AdSpendDay backfill after sync
     netProfit,
     profitMargin,
     status: shopifyOrder.financial_status || 'pending',

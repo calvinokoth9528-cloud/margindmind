@@ -12,16 +12,32 @@ export async function GET(request: NextRequest) {
 
     const userId = (session.user as any).userId;
 
-    const products = await prisma.product.findMany({
-      where: {
-        shop: { userId },
-      },
-      include: {
-        orderItems: {
-          include: { order: true },
+    const [products, shops] = await Promise.all([
+      prisma.product.findMany({
+        where: {
+          shop: { userId },
         },
-      },
+        include: {
+          orderItems: {
+            include: { order: true },
+          },
+        },
+      }),
+      prisma.shop.findMany({
+        where: { userId },
+        select: { currency: true },
+      }),
+    ]);
+
+    // Most common currency across the user's shops, for display
+    const currencyCounts = new Map<string, number>();
+    shops.forEach((s) => {
+      const code = (s.currency || 'USD').toUpperCase();
+      currencyCounts.set(code, (currencyCounts.get(code) || 0) + 1);
     });
+    const displayCurrency =
+      Array.from(currencyCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ??
+      'USD';
 
     const productData = products.map((product) => {
       let totalOrders = 0;
@@ -49,7 +65,7 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({ products: productData });
+    return NextResponse.json({ currency: displayCurrency, products: productData });
   } catch (error) {
     console.error('Products API error:', error);
     return NextResponse.json(

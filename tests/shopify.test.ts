@@ -76,6 +76,22 @@ describe('transformShopifyOrder', () => {
     assert.equal(result.items[0].cost, 0); // unknown cost defaults to 0
   });
 
+  it('uses the shop payment provider fee profile when given', () => {
+    const costs = new Map<string, number>();
+
+    // Default: Shopify Payments 2.9% + $0.30
+    const defaultFee = transformShopifyOrder(shopifyOrder, costs).transactionFee;
+    assert.ok(Math.abs(defaultFee - (149.97 * 0.029 + 0.3)) < 1e-9);
+
+    // PayPal: 3.49% + $0.49
+    const paypalFee = transformShopifyOrder(shopifyOrder, costs, 'paypal').transactionFee;
+    assert.ok(Math.abs(paypalFee - (149.97 * 0.0349 + 0.49)) < 1e-9);
+
+    // None: zero fee
+    const noFee = transformShopifyOrder(shopifyOrder, costs, 'none').transactionFee;
+    assert.equal(noFee, 0);
+  });
+
   it('skips line items without a product id', () => {
     const orderWithGiftCard = {
       ...shopifyOrder,

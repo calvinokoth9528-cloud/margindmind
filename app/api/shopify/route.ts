@@ -6,6 +6,7 @@ import prisma from '@/lib/db';
 import { generateShopifyAuthUrl, exchangeShopifyCode } from '@/lib/shopify';
 
 const STATE_COOKIE = 'shopify_oauth_state';
+const COUNTRY_COOKIE = 'shopify_oauth_country';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || '';
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || '';
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     let shop = searchParams.get('shop') || '';
+    const country = (searchParams.get('country') || 'US').toUpperCase();
 
     // If no shop provided, try to get from query params or use placeholder for demo
     if (!shop) {
@@ -53,6 +55,14 @@ export async function GET(request: NextRequest) {
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 10, // 10 minutes
+    });
+    // Remember the shop's country so the callback can set defaults
+    // (currency, payment provider) when the store is created.
+    cookieStore.set(COUNTRY_COOKIE, country, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 10,
     });
 
     return NextResponse.json({ authUrl, shop });

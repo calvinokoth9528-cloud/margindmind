@@ -4,6 +4,12 @@ import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { parseCsv } from '@/lib/csv';
 import { buildImportFromRows } from '@/lib/import';
+import {
+  FEE_PROFILES,
+  PAYMENT_PROVIDER_IDS,
+  resolveCurrency,
+  suggestProviderForCountry,
+} from '@/lib/fees';
 import { z } from 'zod';
 
 const MAX_CSV_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -12,6 +18,22 @@ const MAX_ROWS = 10_000;
 const importSchema = z.object({
   storeName: z.string().min(1).max(60),
   csv: z.string().min(1).max(MAX_CSV_BYTES),
+  country: z
+    .string()
+    .length(2)
+    .regex(/^[a-zA-Z]{2}$/)
+    .optional(),
+  currency: z
+    .string()
+    .length(3)
+    .regex(/^[a-zA-Z]{3}$/)
+    .optional(),
+  paymentProvider: z
+    .string()
+    .refine((id) => PAYMENT_PROVIDER_IDS.includes(id), {
+      message: 'Unknown payment provider',
+    })
+    .optional(),
 });
 
 const slugify = (name: string) =>
@@ -31,7 +53,14 @@ export async function POST(request: NextRequest) {
 
     const userId = (session.user as any).userId;
     const body = await request.json();
-    const { storeName, csv } = importSchema.parse(body);
+    const { storeName, csv, country, currency, paymentProvider } =
+      importSchema.parse(body);
+
+    // Country fills any gaps: default currency and a region-appropriate
+    // payment provider when the user didn't pick one explicitly.
+    const resolvedCurrency = resolveCurrency(currency, country);
+    const resolvedProvider =
+      paymentProvider ?? (country ? suggestProviderForCountry(country) : 'other');
 
     const rows = parseCsv(csv);
     if (rows.length === 0) {
@@ -47,7 +76,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { orders, skipped } = buildImportFromRows(rows);
+    const { orders, skipped } = buildImportFromRows(rows, {
+      paymentProvider: resolvedProvider,
+    });
     if (orders.length === 0) {
       return NextResponse.json(
         {
@@ -67,6 +98,9 @@ export async function POST(request: NextRequest) {
       },
       update: {
         platform: 'CSV',
+        country: country?.toUpperCase() ?? undefined,
+        currency: resolvedCurrency,
+        paymentProvider: resolvedProvider,
         lastSync: new Date(),
       },
       create: {
@@ -74,6 +108,9 @@ export async function POST(request: NextRequest) {
         shopUrl,
         platform: 'CSV',
         accessToken: '',
+        country: country?.toUpperCase() ?? 'US',
+        currency: resolvedCurrency,
+        paymentProvider: resolvedProvider,
         lastSync: new Date(),
       },
     });

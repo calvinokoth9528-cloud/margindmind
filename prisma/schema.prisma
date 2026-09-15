@@ -55,8 +55,22 @@ model Shop {
   platform        String
   shopUrl         String
   accessToken     String
+  // Global commerce fields: country drives defaults (currency, VAT),
+  // currency is what the shop's amounts are denominated in,
+  // paymentProvider selects the fee profile used for profit math.
+  country         String   @default("US")
+  currency        String   @default("USD")
+  paymentProvider String   @default("other")
+  // Custom fee profile: when feePercent/feeFixed are set they override the
+  // paymentProvider preset (useful for processors we don't cover).
+  feePercent      Float? 
+  feeFixed        Float?
+  // Tax rate applied to revenue when computing pre/post-tax profit.
+  // Percentage of order revenue; null = use the country default.
+  taxRate         Float?
   orders          Order[]
   products        Product[]
+  adSpendDays     AdSpendDay[]
   lastSync        DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -91,10 +105,15 @@ model Order {
   totalCost       Float       @default(0)
   shippingCost    Float       @default(0)
   transactionFee  Float       @default(0)
+  taxAmount      Float       @default(0)
   adSpend         Float       @default(0)
   netProfit       Float       @default(0)
   profitMargin    Float       @default(0)
   status          String      @default("pending")
+  // Refund tracking (null = not refunded)
+  refundedAt      DateTime?
+  refundAmount    Float       @default(0)
+  refundReason    String?
   orderDate       DateTime
   items           OrderItem[]
   createdAt       DateTime    @default(now())
@@ -113,4 +132,20 @@ model OrderItem {
   price     Float
   cost      Float   @default(0)
   createdAt DateTime @default(now())
+}
+
+// Daily ad spend per shop, imported from ad platforms (Meta, Google Ads).
+// Order.adSpend is a snapshot for fee/profit math; AdSpendDay is the
+// canonical time series used to backfill order-level spend.
+model AdSpendDay {
+  id        String   @id @default(cuid())
+  shopId    String
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  date      DateTime
+  amount    Float
+  source    String   @default("manual") // meta | google | manual
+  createdAt DateTime @default(now())
+
+  @@unique([shopId, date])
+  @@index([shopId, date])
 }

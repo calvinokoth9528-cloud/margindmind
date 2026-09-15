@@ -10,9 +10,18 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
+  Globe,
+  CreditCard,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { buildTemplateCsv } from '@/lib/template';
+import {
+  COUNTRIES,
+  CURRENCIES,
+  FEE_PROFILES,
+  getFeeProfile,
+  suggestProviderForCountry,
+} from '@/lib/fees';
 
 interface ImportCsvModalProps {
   open: boolean;
@@ -40,6 +49,9 @@ export default function ImportCsvModal({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [storeName, setStoreName] = useState('');
+  const [country, setCountry] = useState('US');
+  const [currency, setCurrency] = useState('USD');
+  const [paymentProvider, setPaymentProvider] = useState('shopify');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -47,6 +59,17 @@ export default function ImportCsvModal({
   const [result, setResult] = useState<ImportResult | null>(null);
 
   if (!open) return null;
+
+  // Changing the country updates the currency default and suggests a
+  // region-appropriate payment provider (user can still override both).
+  const handleCountryChange = (code: string) => {
+    setCountry(code);
+    const info = COUNTRIES.find((c) => c.code === code);
+    if (info) {
+      setCurrency(info.defaultCurrency);
+      setPaymentProvider(suggestProviderForCountry(code));
+    }
+  };
 
   const handleFile = (file: File) => {
     setError(null);
@@ -101,7 +124,13 @@ export default function ImportCsvModal({
       const response = await fetch('/api/import/csv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeName: storeName.trim(), csv: fileContent }),
+        body: JSON.stringify({
+          storeName: storeName.trim(),
+          csv: fileContent,
+          country,
+          currency,
+          paymentProvider,
+        }),
       });
       const data = await response.json();
 
@@ -122,6 +151,9 @@ export default function ImportCsvModal({
   const handleClose = () => {
     // Reset state on close so reopening starts clean
     setStoreName('');
+    setCountry('US');
+    setCurrency('USD');
+    setPaymentProvider('shopify');
     setFileName(null);
     setFileContent(null);
     setError(null);
@@ -146,7 +178,7 @@ export default function ImportCsvModal({
         <div className="p-6">
           {!result ? (
             <>
-              <div className="mb-4 flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
+                <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-md">
                 <FileSpreadsheet className="h-5 w-5 text-brand-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-600">
                   Upload an order export from Shopify, Etsy, or any store — columns are
@@ -169,6 +201,63 @@ export default function ImportCsvModal({
                   />
                 </div>
               </div>
+
+              <div className="mb-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Country
+                  </label>
+                  <select
+                    value={country}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Currency
+                  </label>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code} — {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment provider
+                  </label>
+                  <select
+                    value={paymentProvider}
+                    onChange={(e) => setPaymentProvider(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    {Object.values(FEE_PROFILES).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-4 flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5" />
+                Fees use {getFeeProfile(paymentProvider).label}:{' '}
+                {getFeeProfile(paymentProvider).percent}% +{' '}
+                {getFeeProfile(paymentProvider).fixed.toFixed(2)} per order.
+              </p>
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">

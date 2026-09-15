@@ -4,10 +4,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { exchangeShopifyCode } from '@/lib/shopify';
+import { resolveCurrency, suggestProviderForCountry } from '@/lib/fees';
 
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY || '';
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET || '';
 const STATE_COOKIE = 'shopify_oauth_state';
+const COUNTRY_COOKIE = 'shopify_oauth_country';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -33,7 +35,12 @@ export async function GET(request: NextRequest) {
     // Verify the OAuth state nonce to prevent CSRF
     const cookieStore = await cookies();
     const expectedState = cookieStore.get(STATE_COOKIE)?.value;
+    const country = (
+      cookieStore.get(COUNTRY_COOKIE)?.value ||
+      'US'
+    ).toUpperCase();
     cookieStore.delete(STATE_COOKIE);
+    cookieStore.delete(COUNTRY_COOKIE);
 
     if (!expectedState || !state || state !== expectedState) {
       return failRedirect('state_mismatch');
@@ -71,6 +78,9 @@ export async function GET(request: NextRequest) {
         shopUrl,
         platform: 'SHOPIFY',
         accessToken,
+        country,
+        currency: resolveCurrency(null, country),
+        paymentProvider: suggestProviderForCountry(country),
       },
     });
 

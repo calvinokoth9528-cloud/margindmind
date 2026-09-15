@@ -53,9 +53,9 @@ describe('calculateOrderProfit', () => {
 
 describe('aggregateMetrics', () => {
   const orders = [
-    { totalRevenue: 100, totalCost: 50, shippingCost: 5, transactionFee: 3, adSpend: 2, netProfit: 40, profitMargin: 40, date: '2026-09-01' },
-    { totalRevenue: 200, totalCost: 100, shippingCost: 5, transactionFee: 6, adSpend: 4, netProfit: 85, profitMargin: 42.5, date: '2026-09-02' },
-    { totalRevenue: 150, totalCost: 75, shippingCost: 5, transactionFee: 5, adSpend: 3, netProfit: 62, profitMargin: 41.33, date: '2026-09-01' },
+    { totalRevenue: 100, totalCost: 50, shippingCost: 5, transactionFee: 3, taxAmount: 0, adSpend: 2, netProfit: 40, profitMargin: 40, date: '2026-09-01' },
+    { totalRevenue: 200, totalCost: 100, shippingCost: 5, transactionFee: 6, taxAmount: 0, adSpend: 4, netProfit: 85, profitMargin: 42.5, date: '2026-09-02' },
+    { totalRevenue: 150, totalCost: 75, shippingCost: 5, transactionFee: 5, taxAmount: 0, adSpend: 3, netProfit: 62, profitMargin: 41.33, date: '2026-09-01' },
   ];
 
   it('aggregates totals, AOV and average margin', () => {
@@ -76,6 +76,25 @@ describe('aggregateMetrics', () => {
     );
     assert.equal(m.dailyMetrics[0].orders, 2);
     assert.equal(m.dailyMetrics[0].revenue, 250);
+  });
+
+  it('excludes refunded orders by default and sums refunds/tax', () => {
+    const withRefund = [
+      { ...orders[0], taxAmount: 7 }, // kept order with tax
+      ...orders.slice(1),
+      { totalRevenue: 80, totalCost: 40, shippingCost: 0, transactionFee: 2, taxAmount: 6, adSpend: 0, netProfit: 32, profitMargin: 40, refundAmount: 80, date: '2026-09-03' },
+    ];
+
+    const m = aggregateMetrics(withRefund);
+    assert.equal(m.totalOrders, 3); // refunded order excluded
+    assert.equal(m.totalRevenue, 450);
+    assert.equal(m.totalRefunds, 80);
+    assert.equal(m.totalTax, 7); // refunded order's tax excluded too
+
+    const including = aggregateMetrics(withRefund, { includeRefunded: true });
+    assert.equal(including.totalOrders, 4);
+    assert.equal(including.totalRevenue, 530);
+    assert.equal(including.totalTax, 13);
   });
 });
 
