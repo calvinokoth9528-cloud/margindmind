@@ -4,6 +4,8 @@ Track your **true net profit** on every sale. MarginMind connects to your Shopif
 imports orders and products, and automatically calculates profit after product costs,
 shipping, transaction fees, and ad spend.
 
+**Live demo:** https://margindmind.vercel.app — sign in with `demo@margindmind.com` / `password123`
+
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router) + React 19 + TypeScript
