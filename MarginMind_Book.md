@@ -212,6 +212,10 @@ Every store has a **payment provider profile** that determines the fee on each o
 | iDEAL | 0% | €0.29 | Netherlands |
 | Bancontact | 0% | €0.30 | Belgium |
 | SEPA Direct Debit | 0% | €0.35 | Eurozone bank transfers |
+| **M-Pesa** | 1.5% | 1 | Kenya, Tanzania, DR Congo, South Sudan |
+| **MTN MoMo** | 1.5% | 1 | Uganda, Rwanda, DR Congo |
+| **telebirr** | 0.5% | 0.5 | Ethiopia |
+| **Flutterwave** | 2.8% | $0.30 | Pan-African card/mobile aggregator |
 | No processing | 0% | 0 | Manual/offline payments |
 | Other / custom | 2.9% | $0.30 | Anything else |
 
@@ -261,6 +265,11 @@ Each store's tax rate resolves in this order:
 | Switzerland | 8.1% | | Brazil | 17% |
 | Canada | 13% | | India | 18% |
 | USA | 7% (est.) | | New Zealand | 15% |
+| **Kenya** | 16% | | **Ethiopia** | 15% |
+| **Tanzania** | 18% | | **Uganda** | 18% |
+| **Rwanda** | 18% | | **DR Congo** | 16% |
+| **Burundi** | 18% | | **Djibouti** | 10% |
+| **South Sudan** | 18% | | **Somalia** | 5% |
 
 *US rates vary 0–10% by state; 7% is a planning default — set your exact rate in the store editor.*
 
@@ -340,7 +349,7 @@ Re-importing a period **overwrites** the previous allocation, so corrections are
 
 ### Per-store currency
 
-Each store declares its **country and currency** (16 currencies supported — USD, EUR, GBP, JPY, SEK, PLN, BRL, INR, and more). Country selection sets the default; both are editable.
+Each store declares its **country and currency** (26 currencies supported — USD, EUR, GBP, JPY, the East African shillings/francs (KES, TZS, UGX, RWF, ETB, BIF, SSP, SOS, DJF, CDF), and more). Country selection sets the default; both are editable.
 
 ### What currency do dashboards show?
 

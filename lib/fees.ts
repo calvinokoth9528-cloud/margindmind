@@ -27,6 +27,11 @@ export const FEE_PROFILES: Record<string, FeeProfile> = {
   sepa: { id: 'sepa', label: 'SEPA Direct Debit', percent: 0, fixed: 0.35 },
   none: { id: 'none', label: 'No payment processing', percent: 0, fixed: 0 },
   other: { id: 'other', label: 'Other / custom', percent: 2.9, fixed: 0.3 },
+  // East Africa: mobile money dominates; card processors are secondary
+  mpesa: { id: 'mpesa', label: 'M-Pesa', percent: 1.5, fixed: 1 },
+  mtnmomo: { id: 'mtnmomo', label: 'MTN MoMo', percent: 1.5, fixed: 1 },
+  telebirr: { id: 'telebirr', label: 'telebirr', percent: 0.5, fixed: 0.5 },
+  flutterwave: { id: 'flutterwave', label: 'Flutterwave', percent: 2.8, fixed: 0.3 },
 };
 
 export const PAYMENT_PROVIDER_IDS = Object.keys(FEE_PROFILES);
@@ -107,6 +112,17 @@ export const CURRENCIES: CurrencyInfo[] = [
   { code: 'INR', label: 'Indian Rupee', symbol: '₹' },
   { code: 'SGD', label: 'Singapore Dollar', symbol: '$' },
   { code: 'NZD', label: 'New Zealand Dollar', symbol: '$' },
+  // East Africa (mostly zero-decimal shillings/francs; Intl handles display)
+  { code: 'KES', label: 'Kenyan Shilling', symbol: 'KSh' },
+  { code: 'TZS', label: 'Tanzanian Shilling', symbol: 'TSh' },
+  { code: 'UGX', label: 'Ugandan Shilling', symbol: 'USh' },
+  { code: 'RWF', label: 'Rwandan Franc', symbol: 'FRw' },
+  { code: 'ETB', label: 'Ethiopian Birr', symbol: 'Br' },
+  { code: 'BIF', label: 'Burundian Franc', symbol: 'FBu' },
+  { code: 'SSP', label: 'South Sudanese Pound', symbol: 'SSP' },
+  { code: 'SOS', label: 'Somali Shilling', symbol: 'Sh.' },
+  { code: 'DJF', label: 'Djiboutian Franc', symbol: 'Fdj' },
+  { code: 'CDF', label: 'Congolese Franc', symbol: 'FC' },
 ];
 
 export const CURRENCY_CODES = CURRENCIES.map((c) => c.code);
@@ -150,6 +166,17 @@ export const COUNTRIES: CountryInfo[] = [
   { code: 'BR', name: 'Brazil', defaultCurrency: 'BRL', defaultProvider: 'stripe' },
   { code: 'MX', name: 'Mexico', defaultCurrency: 'MXN', defaultProvider: 'stripe' },
   { code: 'IN', name: 'India', defaultCurrency: 'INR', defaultProvider: 'stripe' },
+  // East Africa — mobile money is the default rail in most markets
+  { code: 'KE', name: 'Kenya', defaultCurrency: 'KES', defaultProvider: 'mpesa' },
+  { code: 'TZ', name: 'Tanzania', defaultCurrency: 'TZS', defaultProvider: 'mpesa' },
+  { code: 'UG', name: 'Uganda', defaultCurrency: 'UGX', defaultProvider: 'mtnmomo' },
+  { code: 'RW', name: 'Rwanda', defaultCurrency: 'RWF', defaultProvider: 'mtnmomo' },
+  { code: 'ET', name: 'Ethiopia', defaultCurrency: 'ETB', defaultProvider: 'telebirr' },
+  { code: 'BI', name: 'Burundi', defaultCurrency: 'BIF', defaultProvider: 'other' },
+  { code: 'SS', name: 'South Sudan', defaultCurrency: 'SSP', defaultProvider: 'mpesa' },
+  { code: 'SO', name: 'Somalia', defaultCurrency: 'SOS', defaultProvider: 'other' },
+  { code: 'DJ', name: 'Djibouti', defaultCurrency: 'DJF', defaultProvider: 'other' },
+  { code: 'CD', name: 'DR Congo', defaultCurrency: 'CDF', defaultProvider: 'mpesa' },
 ];
 
 export const COUNTRY_CODES = COUNTRIES.map((c) => c.code);
@@ -176,6 +203,10 @@ const REGIONAL_PROVIDERS: Record<string, string[]> = {
   ideal: ['NL'],
   bancontact: ['BE'],
   sepa: ['DE', 'FR', 'NL', 'BE', 'ES', 'IT', 'AT', 'IE'],
+  // East African mobile money: available per operator footprint
+  mpesa: ['KE', 'TZ', 'CD', 'SS'],
+  mtnmomo: ['UG', 'RW', 'CD'],
+  telebirr: ['ET'],
 };
 
 /** Does this provider make sense for a shop in the given country? */
@@ -229,6 +260,17 @@ export const COUNTRY_TAX_RATES: Record<string, number> = {
   BR: 17,
   MX: 16,
   IN: 18,
+  // East Africa (standard VAT rates)
+  KE: 16,
+  TZ: 18,
+  UG: 18,
+  RW: 18,
+  ET: 15,
+  BI: 18,
+  SS: 18,
+  SO: 5,
+  DJ: 10,
+  CD: 16,
 };
 
 /** Default tax rate (%) for a country; US-style 7% when unknown. */

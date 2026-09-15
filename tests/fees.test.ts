@@ -15,6 +15,7 @@ import {
   resolveCurrency,
   suggestProviderForCountry,
   isProviderAvailableInCountry,
+  defaultTaxRateForCountry,
 } from '../lib/fees.ts';
 
 describe('FEE_PROFILES', () => {
@@ -171,10 +172,55 @@ describe('isProviderAvailableInCountry', () => {
   it('restricts regional providers to their countries', () => {
     assert.equal(isProviderAvailableInCountry('ideal', 'NL'), true);
     assert.equal(isProviderAvailableInCountry('ideal', 'US'), false);
+    // East African mobile money: operator footprints
+    assert.equal(isProviderAvailableInCountry('mpesa', 'KE'), true);
+    assert.equal(isProviderAvailableInCountry('mpesa', 'TZ'), true);
+    assert.equal(isProviderAvailableInCountry('mpesa', 'UG'), false); // MTN territory
+    assert.equal(isProviderAvailableInCountry('mtnmomo', 'UG'), true);
+    assert.equal(isProviderAvailableInCountry('mtnmomo', 'KE'), false);
+    assert.equal(isProviderAvailableInCountry('telebirr', 'ET'), true);
+    assert.equal(isProviderAvailableInCountry('telebirr', 'KE'), false);
   });
 
   it('makes non-regional providers universally available', () => {
     assert.equal(isProviderAvailableInCountry('paypal', 'US'), true);
     assert.equal(isProviderAvailableInCountry('paypal', 'JP'), true);
+    assert.equal(isProviderAvailableInCountry('flutterwave', 'KE'), true);
+  });
+});
+
+describe('East African markets', () => {
+  it('suggests mobile money as the default rail', () => {
+    assert.equal(suggestProviderForCountry('KE'), 'mpesa');
+    assert.equal(suggestProviderForCountry('TZ'), 'mpesa');
+    assert.equal(suggestProviderForCountry('UG'), 'mtnmomo');
+    assert.equal(suggestProviderForCountry('RW'), 'mtnmomo');
+    assert.equal(suggestProviderForCountry('ET'), 'telebirr');
+  });
+
+  it('defaults currency and VAT per country', () => {
+    assert.equal(resolveCurrency(null, 'KE'), 'KES');
+    assert.equal(resolveCurrency(null, 'ET'), 'ETB');
+    assert.equal(getCountry('KE')?.defaultProvider, 'mpesa');
+    assert.equal(defaultTaxRateForCountry('KE'), 16);
+    assert.equal(defaultTaxRateForCountry('TZ'), 18);
+    assert.equal(defaultTaxRateForCountry('ET'), 15);
+  });
+
+  it('prices M-Pesa fees (1.5% + 1)', () => {
+    const closeTo = (actual: number, expected: number) =>
+      assert.ok(Math.abs(actual - expected) < 1e-9);
+    closeTo(calculateProviderFee(1000, 'mpesa'), 16); // KSh 1,000 order
+    closeTo(calculateProviderFee(1000, 'flutterwave'), 28.3);
+  });
+
+  it('keeps zero-decimal shilling currencies formattable', () => {
+    CURRENCY_CODES.forEach((code) => {
+      const formatted = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: code,
+      }).format(1000);
+      assert.ok(formatted.length > 0, `${code} should format`);
+    });
   });
 });
