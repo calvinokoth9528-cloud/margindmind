@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
+    "db:seed:pg": "vite-node prisma/seed-pg.js",
     "test": "node --test tests/profit.test.ts tests/shopify.test.ts tests/stripe.test.ts tests/csv.test.ts tests/import.test.ts tests/fees.test.ts tests/ads.test.ts",
     "postinstall": "prisma generate"
   },
