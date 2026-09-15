@@ -1,763 +1,602 @@
-# MarginMind - The Definitive Guide
-*A complete guide to understanding and building an e-commerce profit analytics platform*
+# MarginMind — The Definitive Guide
+
+*A complete guide to understanding, using, and building the e-commerce profit analytics platform.*
+
+**Live app:** https://margindmind.vercel.app · Demo login: `demo@margindmind.com` / `password123`
 
 ---
 
 ## Table of Contents
 
-1. [Introduction](#1-introduction)
-2. [The Problem](#2-the-problem)
-3. [The Solution](#3-the-solution)
-4. [Architecture Overview](#4-architecture-overview)
-5. [Technology Stack](#5-technology-stack)
-6. [Data Model](#6-data-model)
-7. [Profit Calculation Engine](#7-profit-calculation-engine)
-8. [API Integrations](#8-api-integrations)
-9. [Authentication & Security](#9-authentication--security)
-10. [Subscription & Billing](#10-subscription--billing)
-11. [Frontend Architecture](#11-frontend-architecture)
-12. [API Endpoints Reference](#12-api-endpoints-reference)
-13. [Deployment Guide](#13-deployment-guide)
-14. [Monetization Strategy](#14-monetization-strategy)
-15. [Marketing & Growth](#15-marketing--growth)
-16. [Future Roadmap](#16-future-roadmap)
+**Part I — For Users (how to run your business with MarginMind)**
+
+1. [Why True Profit Matters](#1-why-true-profit-matters)
+2. [Getting Started](#2-getting-started)
+3. [Connecting Your Stores](#3-connecting-your-stores)
+4. [Importing Orders from CSV](#4-importing-orders-from-csv)
+5. [Understanding the Dashboard](#5-understanding-the-dashboard)
+6. [Money In, Money Out: The Profit Formula](#6-money-in-money-out-the-profit-formula)
+7. [Payment Provider Fees](#7-payment-provider-fees)
+8. [Taxes: VAT and Sales Tax](#8-taxes-vat-and-sales-tax)
+9. [Refunds and Returns](#9-refunds-and-returns)
+10. [Ad Spend: Meta and Google Ads](#10-ad-spend-meta-and-google-ads)
+11. [Multi-Currency Selling](#11-multi-currency-selling)
+12. [Exporting Your Data](#12-exporting-your-data)
+
+**Part II — For Builders (how it works inside)**
+
+13. [Architecture Overview](#13-architecture-overview)
+14. [Data Model](#14-data-model)
+15. [The Profit Engine](#15-the-profit-engine)
+16. [API Reference](#16-api-reference)
+17. [Authentication and Security](#17-authentication-and-security)
+18. [Deployment Guide](#18-deployment-guide)
+19. [Testing](#19-testing)
+20. [Roadmap](#20-roadmap)
 
 ---
 
-## 1. Introduction
-
-### What is MarginMind?
-
-**MarginMind** is a Software-as-a-Service (SaaS) platform designed to solve a critical pain point for e-commerce sellers: they don't know their true profit.
-
-While platforms like Shopify and Amazon show revenue, they don't show what sellers actually keep after accounting for:
-- Cost of goods sold (COGS)
-- Shipping costs
-- Platform transaction fees
-- Payment processing fees
-- Advertising spend
-
-MarginMind integrates directly with e-commerce platforms via their APIs, pulls all relevant data, and presents clear, actionable profit metrics in an intuitive dashboard.
-
-### Who is it for?
-
-- **Shopify store owners** struggling to calculate true ROI
-- **Amazon FBA sellers** managing complex fee structures
-- **Etsy and multi-channel sellers** juggling multiple platforms
-- **Marketing agencies** needing to prove client ROI
-- **E-commerce managers** at DTC brands
-
-### Key Value Proposition
-
-> *"Stop guessing. Start knowing. MarginMind shows you exactly how much you're making on every sale."*
+# Part I — For Users
 
 ---
 
-## 2. The Problem
+## 1. Why True Profit Matters
 
-### The Hidden Profit Crisis
+Your store dashboard says you made $40,000 this month. Sounds great. But how much of that is actually *yours*?
 
-Most e-commerce sellers operate with **incomplete financial visibility**. Here's why:
+Revenue is not profit. Between the sale landing in your bank account and the money being truly yours, a lot of hands reach into the jar:
 
-#### 2.1 The Math Doesn't Add Up
+| Cost | Typical size | Where it hides |
+|---|---|---|
+| **Product cost (COGS)** | 20–60% of revenue | Your supplier invoices |
+| **Shipping** | 5–15% | Carrier bills, fulfillment fees |
+| **Payment processing** | 2–4% + $0.30/order | Buried in payout statements |
+| **Taxes (VAT/sales tax)** | 0–27% *of revenue* | Collected from customers, owed to governments |
+| **Ad spend** | 10–40% (or much more) | Meta/Google Ads dashboards, separate from sales data |
 
-A typical seller sees:
-- **Revenue:** $10,000
-- **Platform Fee:** $290 (2.9%)
-- **Payment Processing:** $320
-- **COGS:** $4,000
-- **Shipping:** $800
-- **Ads:** $1,500
-
-**Reported Profit (incorrect):** $10,000 - $4,000 = $6,000 (60% margin)
-**Actual Profit:** $10,000 - $4,000 - $800 - $290 - $320 - $1,500 = $3,090 (30.9% margin)
-
-That's a **30% overstatement** of profitability!
-
-#### 2.2 Why Existing Tools Fall Short
-
-| Tool | Revenue Tracking | Cost Tracking | Ad Spend | True Profit |
-|------|------------------|---------------|----------|-------------|
-| Shopify Analytics | Yes | No | No | No |
-| Amazon Seller Central | Yes | Partial | No | No |
-| QuickBooks | Yes | Manual | Manual | Manual |
-| Excel Spreadsheets | Manual | Manual | Manual | Error-prone |
-| **MarginMind** | **Auto** | **Auto** | **Auto** | **Auto** |
-
-#### 2.3 The Impact
-
-- **Overspending on ads** because profitability isn't clear
-- **Poor pricing decisions** due to incomplete margin data
-- **Cash flow problems** from misprojected profits
-- **Missed optimization opportunities** on low-margin products
-
----
-
-## 3. The Solution
-
-### MarginMind's Approach
-
-MarginMind solves this by providing a **single pane of glass** for all profit-related metrics.
-
-#### Core Capabilities
-
-1. **Automated Data Import** - Connects to Shopify, Amazon, and other platforms via API
-2. **Cost Tracking** - Monitors product costs, shipping, and COGS
-3. **Fee Calculation** - Automatically calculates platform-specific fees
-4. **Ad Spend Integration** - (Planned) Connects to Facebook, TikTok, Google Ads
-5. **Real-time Dashboard** - Visualizes profit trends with interactive charts
-6. **Alerting System** - Notifies sellers when margins drop below thresholds
-
-#### What Makes It Different
-
-- **Platform-native integration** (not a browser extension)
-- **Real profit calculation**, not just revenue
-- **Designed for actionability** - not just reporting
-- **Multi-platform aggregation** in one view
-
----
-
-## 4. Architecture Overview
-
-### System Architecture Diagram
+A store doing $40k/month with 45% product cost, 8% shipping, 3% fees, 7% tax, and 20% ad spend keeps:
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│   Shopify API   │     │   Amazon SP-API   │     │  WooCommerce    │
-│  (REST/GraphQL) │     │     (REST)        │     │   API           │
-└────────┬────────┘     └────────┬──────────┘     └──────┬──────────┘
-         │                       │                        │
-         └───────────────────────┼────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │     MarginMind App      │
-                    │   (Next.js API Routes)   │
-                    └────────────┬────────────┘
-                                 │
-        ┌────────────────────────┼────────────────────────┐
-        │                        │                        │
-┌───────▼────────┐      ┌──────▼──────┐       ┌─────────▼─────────┐
-│   Database      │      │   Stripe    │       │   NextAuth.js     │
-│  (PostgreSQL)   │      │  (Billing)  │       │  (Auth/Sessions)  │
-│   (Prisma)      │      │             │       │                   │
-└─────────────────┘      └─────────────┘       └───────────────────┘
-         │                        │                        │
-         └────────────────────────┼────────────────────────┘
-                                  │
-                    ┌─────────────▼──────────────┐
-                    │   Frontend (React/Tailwind) │
-                    │   - Dashboard              │
-                    │   - Orders Page            │
-                    │   - Products Page          │
-                    │   - Store Connect          │
-                    │   - Settings Page          │
-                    └────────────────────────────┘
+$40,000 − $18,000 − $3,200 − $1,200 − $2,800 − $8,000 = $6,800  (17% margin)
 ```
 
-### Data Flow
+That $40k "revenue" business is really a $6,800/month business. MarginMind's job is to make that number — and every order's contribution to it — visible and accurate.
 
-1. **User registers** → Account created in database + Stripe customer
-2. **User connects store** → OAuth flow stores access token securely
-3. **Background sync** → Periodically fetches orders/products from platforms
-4. **Data processing** → Calculates profit metrics for each order
-5. **Dashboard render** → Aggregates and visualizes profit data
-6. **Subscription check** → Validates billing status before showing premium features
-
-### Component Breakdown
-
-#### Backend (Server-Side)
-- **API Routes** (`app/api/`) - RESTful endpoints for all operations
-- **Prisma ORM** (`lib/db.ts`) - Type-safe database client singleton
-- **Auth Library** (`lib/auth.ts`) - NextAuth.js configuration with Credentials provider
-- **Profit Engine** (`lib/profit.ts`) - Core calculation logic
-- **Shopify SDK** (`lib/shopify.ts`) - API integration utilities
-- **Stripe SDK** (`lib/stripe.ts`) - Billing and subscription management
-
-#### Frontend (Client-Side)
-- **Root Layout** (`app/layout.tsx`) - Global styles and session provider
-- **Pages** (`app/*/page.tsx`) - Individual views
-- **Components** - Reusable UI elements (via Tailwind components)
-- **Hooks** - Client-side data fetching and state management
+**The core idea:** every order is recorded with *all* of its costs. Profit is computed per order, then rolled up into days, products, and periods. When any cost assumption changes (you switch payment processors, raise a product cost, refund an order), history is recalculated so your margins always reflect reality.
 
 ---
 
-## 5. Technology Stack
+## 2. Getting Started
 
-### Frontend
-- **Framework:** Next.js 16 (App Router) with Turbopack
-- **Language:** TypeScript
-- **UI Library:** Tailwind CSS v4
-- **Icon Library:** Lucide React
-- **Chart Library:** Recharts
-- **Date Utilities:** date-fns
-- **Form Validation:** Zod
+### Sign up
 
-### Backend
-- **Runtime:** Node.js via Next.js API Routes
-- **Database:** PostgreSQL (production) / SQLite (local dev)
-- **ORM:** Prisma ORM v5
-- **Authentication:** NextAuth.js v4
-- **Password Hashing:** bcryptjs
+1. Go to **https://margindmind.vercel.app** and click **Sign Up**.
+2. Enter your name, email, and a password (stored hashed with bcrypt — nobody, including us, can read it).
+3. You land on the dashboard, empty and ready for your first store.
 
-### Infrastructure
-- **Payments:** Stripe Checkout + Billing Portal
-- **E-Commerce APIs:** Shopify Admin API, Amazon SP-API
-- **Deployment:** Vercel (frontend) + Railway/Supabase (database)
-- **Email:** (Planned - SendGrid/Postmark for notifications)
+Or explore with the demo account: `demo@margindmind.com` / `password123` — it comes loaded with 30 days of sample orders, refunds, and tax data.
+
+### The layout
+
+- **Dashboard** — KPIs, trends, top products, break-even and projections
+- **Orders** — every order with full cost breakdown, refund actions, export
+- **Products** — per-product profitability; edit product costs here
+- **Stores** — connect stores, import CSVs, configure fees/currency/tax per store
+- **Settings** — account and notification preferences
 
 ---
 
-## 6. Data Model
+## 3. Connecting Your Stores
 
-### Entity Relationship Diagram
+### Shopify (OAuth)
 
-```
-User (1) ────┬
-             │
-             ├─── (1) Subscription
-             │
-             └─── (Many) Shop ──── (Many) Product
-                                 └─── (Many) Order ──── (Many) OrderItem
-```
+1. **Stores → Add Store.**
+2. Enter your store URL (`your-store.myshopify.com`) and pick the store's **country** — this sets the currency and sensible fee/tax defaults automatically.
+3. You're redirected to Shopify to authorize read access (`read_orders`, `read_products`), then bounced back to MarginMind.
+4. Click **Sync** any time to pull new orders and products since the last sync.
 
-### Database Schema
+Behind the scenes the OAuth flow uses a signed state cookie (CSRF protection), and your access token is stored against *your* account only.
 
-#### User
-The core entity representing a MarginMind account.
+> **Note on product costs:** Shopify's public product API doesn't expose what *you* pay for your products. Imported products start at cost $0 — set real costs on the **Products** page and every affected historical order is recalculated instantly.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier (CUID) |
-| `email` | string | Unique email for login |
-| `name` | string? | Display name |
-| `password` | string | bcrypt-hashed password |
-| `stripeId` | string? | Stripe customer ID |
-| `createdAt` | DateTime | Account creation timestamp |
-| `updatedAt` | DateTime | Last profile update |
+### CSV import (any platform)
 
-#### Subscription
-Tracks the user's billing plan and Stripe subscription.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier |
-| `userId` | string | Links to User |
-| `stripeSubId` | string? | Stripe subscription ID |
-| `stripePriceId` | string? | Stripe price tier |
-| `status` | string | active/inactive/canceled |
-| `currentPeriodEnd` | DateTime? | End of billing period |
-| `plan` | string | FREE/STARTER/PRO/ENTERPRISE |
-
-#### Shop
-Represents a connected e-commerce store.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier |
-| `userId` | string | Owner |
-| `platform` | Platform | SHOPIFY/AMAZON/ETSY/WOOCOMMERCE |
-| `shopUrl` | string | Store domain (e.g., mystore.myshopify.com) |
-| `accessToken` | string | OAuth access token |
-| `orders` | Order[] | Related orders |
-| `lastSync` | DateTime? | Last data sync timestamp |
-
-#### Product
-Individual products from connected stores.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier |
-| `shopId` | string | Belongs to Shop |
-| `externalId` | string | Original platform ID |
-| `title` | string | Product name |
-| `sku` | string? | Stock keeping unit |
-| `cost` | float | Your cost per unit |
-| `price` | float | Selling price |
-
-#### Order
-Individual orders from connected stores.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `externalId` | string | - | Platform order ID |
-| `orderNumber` | string | - | Human-readable number |
-| `totalRevenue` | float | - | Gross order value |
-| `totalCost` | float | 0.0 | Product COGS |
-| `shippingCost` | float | 0.0 | Shipping expenses |
-| `transactionFee` | float | 0.0 | Platform/payment fees |
-| `adSpend` | float | 0.0 | Ad spend allocated |
-| `netProfit` | float | 0.0 | **Calculated profit** |
-| `profitMargin` | float | 0.0 | **Profit percentage** |
-| `status` | string | 'pending' | Order status |
-| `orderDate` | DateTime | - | When order was placed |
-
-#### OrderItem
-Individual line items within orders.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `orderId` | string | Parent Order |
-| `productId` | string? | Related Product |
-| `quantity` | int | Units sold |
-| `price` | float | Unit price |
-| `cost` | float | Unit cost |
+No API access? Selling on Etsy, Amazon, WooCommerce, or a spreadsheet? The CSV importer accepts both the MarginMind template and Shopify order exports as-is — columns are auto-detected with loose name matching (`Order ID`, `order_id`, and `orderid` all work). See [section 4](#4-importing-orders-from-csv).
 
 ---
 
-## 7. Profit Calculation Engine
+## 4. Importing Orders from CSV
 
-### Core Formula
+**Stores → Import CSV**, then:
 
-```
-Net Profit = Revenue - Product Cost - Shipping - Transaction Fees - Ad Spend
-Profit Margin = (Net Profit / Revenue) × 100
-```
+1. **Name** the store (e.g. "My Etsy Shop").
+2. Pick **country, currency, and payment provider** — choosing a country auto-fills the currency and suggests a region-appropriate provider (Germany → iDEAL, Belgium → Bancontact). All three can be overridden.
+3. Upload a `.csv` up to 5 MB / 10,000 rows.
+4. Review the result: orders created/updated, rows skipped (with reasons).
 
-### Platform Fee Structures
+### What the importer understands
 
-| Platform | Fee Structure |
-|----------|---------------|
-| **Shopify** | Basic: 2.9% + $0.30, Shopify: 2.6% + $0.30, Advanced: 2.4% + $0.30 |
-| **Amazon** | Typical 8-15% referral fee depending on category |
-| **Etsy** | 6.5% transaction fee + $0.20 listing fee |
-| **WooCommerce** | Varies by payment processor |
+| Column | Accepted names (examples) |
+|---|---|
+| Order ID | `Order ID`, `Name`, `Order` |
+| Date | `Paid at`, `Created at`, `Order Date`, `Date` |
+| Status | `Financial Status`, `Status` |
+| Product | `Lineitem name`, `Product Title`, `Title` |
+| SKU | `Lineitem SKU`, `SKU` |
+| Quantity | `Lineitem quantity`, `Qty`, `Units` |
+| Unit price | `Lineitem price`, `Unit Price`, `Price` |
+| Unit cost | `Cost`, `Unit Cost`, `COGS`, `Landed Cost` |
+| Shipping | `Shipping`, `Total Shipping` |
+| Ad spend | `Ad Spend`, `Advertising`, `Marketing Spend` |
+| Order total | `Total`, `Total Revenue`, `Order Total` |
 
-### Implementation
+**Multi-line orders** (Shopify repeats an order once per line item) are grouped back into a single order, with the total counted once.
 
-```typescript
-// lib/profit.ts
-export function calculateOrderProfit(params: {
-  revenue: number;
-  productCost: number;
-  shippingCost: number;
-  transactionFeePercent?: number;
-  adSpend?: number;
-}): OrderMetrics {
-  const { revenue, productCost, shippingCost, 
-          transactionFeePercent = 2.9, adSpend = 0 } = params;
-  
-  const transactionFee = revenue * (transactionFeePercent / 100) + 0.30;
-  const totalCost = productCost + shippingCost + transactionFee + adSpend;
-  const netProfit = revenue - totalCost;
-  const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+**Dates:** US `M/D/Y` by default; EU `D/M/Y` is auto-detected when unambiguous (e.g. `31/12/2026`). ISO dates always work. Unparseable dates are reported and skipped, never guessed.
 
-  return { totalRevenue: revenue, totalCost, shippingCost, 
-           transactionFee, adSpend, netProfit, profitMargin };
-}
-```
-
-### Margin Classification
-
-Orders are color-coded based on profit margin:
-- **Green (≥20%)** - Healthy profit
-- **Yellow (10-20%)** - Monitor closely
-- **Red (<10%)** - Potential loss leader
+**Fees:** the fee shown on imported orders comes from the payment provider you picked in step 2 — not a hardcoded rate. Re-importing the same file updates existing orders by ID.
 
 ---
 
-## 8. API Integrations
+## 5. Understanding the Dashboard
 
-### Shopify Integration
+### KPI cards
 
-MarginMind connects to Shopify stores using OAuth 2.0:
+- **Total Revenue** — gross order revenue in the period
+- **Net Profit** — what's left after *all* costs (product, shipping, fees, tax, ads)
+- **Average Order Value** — revenue ÷ orders
+- **Total Orders** — count
 
-1. **Initiation:** User enters their store URL
-2. **OAuth Flow:** Redirect to Shopify for authorization
-3. **Token Exchange:** Receive access token
-4. **Data Sync:** 
-   - Fetch orders via `GET /admin/api/2024-01/orders.json`
-   - Fetch products via `GET /admin/api/2024-01/products.json`
-   - Calculate Shopify-specific fees
+Each card compares against the **equally-sized window immediately before** the selected one. "vs prev. 30d" on a 30-day view means the previous 30 days. No baseline data → no misleading percentage.
 
-#### Permissions Required
-- `read_orders` - Access to order data
-- `read_products` - Access to product catalog
-- `read_analytics` - Access to financial reports
+### Filters
 
-### Amazon Integration (Planned)
+- **Period presets:** 7/30/90/365 days
+- **Calendar button:** any custom from/to range — the comparison still uses the preceding window of the same length
+- **Store picker** (appears with 2+ stores): isolate one store's metrics, currency, and fee profile
 
-Uses the **Selling Partner API (SP-API)**:
-- `orders-api` for order data
-- `products-api` for product details
-- Fee calculation based on category-specific rates
+### Trend and activity charts
 
-### Etsy & WooCommerce (Planned)
+Daily revenue/profit line and orders bar. Refunded orders are excluded from trends (see [section 9](#9-refunds-and-returns)).
 
-- **Etsy:** Uses REST API with OAuth 1.0a
-- **WooCommerce:** Connects via REST API with consumer key/secret
+### Tax & refunds summary
 
-### Webhook Handling
+Shown when the period contains tax or refunds: estimated tax collected, and refund totals with counts.
 
-Stripe webhooks handle:
-- `checkout.session.completed` - Activate trial
-- `customer.subscription.updated` - Update plan
-- `customer.subscription.deleted` - Downgrade to free
+### Top products
+
+Ranked by *profit*, not revenue — computed from order line items, so it reflects real contribution after costs.
+
+### Break-even and projections
+
+Enter fixed monthly costs (rent, tools, salaries) and the calculator shows the revenue needed to break even at your current margin. The projection line compounds your current profit at a growth rate you control.
 
 ---
 
-## 9. Authentication & Security
+## 6. Money In, Money Out: The Profit Formula
 
-### Authentication Flow
-
-1. **Registration:**
-   - User submits email, password, name
-   - Password hashed with bcrypt (12 rounds)
-   - Stripe customer created
-   - Subscription created (FREE plan)
-   - JWT token issued via NextAuth.js
-
-2. **Login:**
-   - Credentials checked against database
-   - On success, NextAuth.js issues JWT session
-   - Session stored in encrypted cookie
-
-3. **Session Management:**
-   - JWT tokens with 7-day expiry
-   - Automatic session refresh
-   - Client-side session polling via `useSession`
-
-### Security Measures
-
-| Threat | Mitigation |
-|--------|------------|
-| Password exposure | bcrypt hashing with 12 rounds |
-| Session hijacking | JWT with secure, HttpOnly cookies |
-| SQL injection | Prisma ORM parameterized queries |
-| XSS | React's built-in XSS protection |
-| CSRF | NextAuth.js CSRF tokens |
-| API credential exposure | Encrypted storage, OAuth tokens |
-| Rate limiting | (Planned) API rate limiting |
-
-### Environment Variables
-
-Never commit `.env` files. Required variables:
+Every order in MarginMind stores its full cost breakdown:
 
 ```
-DATABASE_URL          - PostgreSQL/SQ connection string
-NEXTAUTH_SECRET       - Random 32+ char string for JWT signing
-STRIPE_SECRET_KEY     - Your Stripe secret key
-STRIPE_WEBHOOK_SECRET - Stripe webhook signing secret
-SHOPIFY_API_KEY       - Shopify app API key
-SHOPIFY_API_SECRET    - Shopify app API secret
+netProfit = revenue
+          − productCost      (COGS for the items sold)
+          − shippingCost     (what shipping cost YOU, or what you charged if bundled)
+          − transactionFee   (from your payment provider's profile)
+          − taxAmount        (VAT/sales tax on the revenue)
+          − adSpend          (your attributed share of the day's ad spend)
+```
+
+`profitMargin = netProfit / revenue × 100`
+
+Because every component is stored per order — not just the final number — MarginMind can answer questions like "what happens to last quarter's profit if I switch from Shopify Payments to PayPal?" by recomputing only the fee line across history.
+
+### Why tax is subtracted
+
+VAT and sales tax are collected from customers but owed to tax authorities — while you hold it, it isn't yours. Subtracting it shows the profit that's genuinely yours to keep. (MarginMind computes an *estimate* for planning; your accountant does the real thing.)
+
+---
+
+## 7. Payment Provider Fees
+
+Every store has a **payment provider profile** that determines the fee on each order: a percentage plus a fixed amount per transaction.
+
+### Built-in profiles
+
+| Provider | Percent | Fixed | Typical market |
+|---|---|---|---|
+| Shopify Payments | 2.9% | $0.30 | US/CA/UK/AU Shopify stores |
+| Stripe | 2.9% | $0.30 | Global, direct integrations |
+| PayPal | 3.49% | $0.49 | Cross-border, consumer-heavy stores |
+| Square | 2.9% | $0.30 | Omnichannel US |
+| Klarna | 3.29% | $0.30 | BNPL-heavy checkouts (EU/US) |
+| iDEAL | 0% | €0.29 | Netherlands |
+| Bancontact | 0% | €0.30 | Belgium |
+| SEPA Direct Debit | 0% | €0.35 | Eurozone bank transfers |
+| No processing | 0% | 0 | Manual/offline payments |
+| Other / custom | 2.9% | $0.30 | Anything else |
+
+### Changing a store's provider
+
+**Stores → pencil icon → Payment provider → Save.** Two things happen:
+
+1. The store's profile is updated.
+2. **Every historical order is recalculated** with the new fee — so the question "what would margins have looked like on PayPal?" is answered with real numbers in seconds.
+
+### Custom rates
+
+Using a processor we don't list (Paddle, Adyen, Mollie, local gateways)? Tick **"Use custom fee rate"** in the store editor and enter your exact percent + fixed fee. Custom values always override the preset.
+
+A useful rule of thumb when comparing providers on a $30 average order:
+
+```
+Shopify Payments: 30 × 0.029 + 0.30 = $1.17  (3.90%)
+PayPal:           30 × 0.0349 + 0.49 = $1.54  (5.13%)
+iDEAL:                                 $0.29  (0.97%)
 ```
 
 ---
 
-## 10. Subscription & Billing
+## 8. Taxes: VAT and Sales Tax
 
-### Pricing Tiers
+### Where the rate comes from
 
-| Tier | Price | Shops | Orders/Month | Features |
-|------|-------|-------|--------------|----------|
-| Free | $0 | 1 | 100 | Basic metrics, email support |
-| Starter | $29 | 3 | 1,000 | Advanced analytics, product-level tracking |
-| Pro | $79 | 10 | Unlimited | Ad spend tracking, API access, priority support |
-| Enterprise | $199 | Unlimited | Unlimited | Custom integrations, white-label, dedicated manager |
+Each store's tax rate resolves in this order:
 
-### Billing Flow
+1. **Shop-level override** — an exact rate you set in the store editor (e.g. your registered state/nation rate)
+2. **Country default** — MarginMind's built-in standard rates
+3. **US 7%** — fallback if the country is unknown
 
-1. User selects a paid plan on the Settings or Pricing page
-2. Frontend calls `/api/stripe/checkout` with selected plan
-3. Stripe Checkout is created with 14-day trial
-4. User enters payment details on Stripe-hosted page
-5. After redirect back, webhook `checkout.session.completed` fires
-6. User's subscription upgraded in database
-7. User accesses premium features
+### Built-in country defaults
 
-### Stripe Integration
+| Country | Rate | | Country | Rate |
+|---|---|---|---|---|
+| Germany | 19% | | Australia | 10% |
+| UK | 20% | | Japan | 10% |
+| France | 20% | | Singapore | 9% |
+| Netherlands | 21% | | Sweden | 25% |
+| Spain | 21% | | Denmark | 25% |
+| Italy | 22% | | Norway | 25% |
+| Ireland | 23% | | Poland | 23% |
+| Belgium | 21% | | Mexico | 16% |
+| Switzerland | 8.1% | | Brazil | 17% |
+| Canada | 13% | | India | 18% |
+| USA | 7% (est.) | | New Zealand | 15% |
 
-```typescript
-// Create checkout session
-const session = await stripe.checkout.sessions.create({
-  customer: customerId,
-  mode: 'subscription',
-  payment_method_types: ['card'],
-  line_items: [{ price: priceId, quantity: 1 }],
-  subscription_data: { trial_period_days: 14 },
-  success_url: '/dashboard?subscription=success',
-  cancel_url: '/dashboard?subscription=cancel',
-});
+*US rates vary 0–10% by state; 7% is a planning default — set your exact rate in the store editor.*
+
+### What gets taxed
+
+The rate applies to **order revenue**. The collected tax shows as a summary card on the dashboard and a per-order line in exports.
+
+### Changing rates
+
+Edit the tax rate in the store editor and save — historical orders are recalculated with the new rate (alongside any fee change). Useful when you register for VAT, cross a threshold, or want to model "what if" scenarios.
+
+---
+
+## 9. Refunds and Returns
+
+Refunded sales must not count as profitable sales — and pretending otherwise is one of the most common ways sellers overestimate their business.
+
+### Recording a refund
+
+**Orders → Refund** on any order:
+
+- **Full refund** (default): reverses all revenue
+- **Partial refund**: enter any amount up to the order total (a 20% "keep the sale" gesture on a defective item, for example)
+- **Reason**: recorded for later analysis
+
+### The accounting logic
+
+When you refund, MarginMind assumes the realistic outcome:
+
+- **Revenue is reversed** — you gave the money back
+- **Costs are NOT recovered** — the product was already made and shipped, the gateway kept its fee, the tax may already be reported, and the ad spend already happened
+
+So a fully refunded $100 order that cost you $45 in product, $3.20 in fees, $7 tax and $5 ads shows as **−$60.20**, not $0. That's the real hit.
+
+### Where refunds show up
+
+- **Orders table:** status pill turns red (`refunded`), with an **Undo** action if you made a mistake
+- **Dashboard trends:** refunded orders are **excluded** from revenue/profit trends — trends show the health of sales you kept
+- **Refund summary card:** totals and counts, so the damage is always visible
+- **CSV export:** refund amount as its own column
+
+### Undo
+
+Refunded in error? **Orders → Undo** restores the order to its pre-refund state with profit recalculated.
+
+---
+
+## 10. Ad Spend: Meta and Google Ads
+
+Ad platforms report spend in *their* dashboards; your store reports sales. MarginMind joins the two by day.
+
+### Importing
+
+1. **Stores → Ad Spend** (top right).
+2. Choose the store.
+3. Upload a daily-spend CSV:
+   - **Meta Ads:** export with `Day` + `Amount spent` columns — works as-is
+   - **Google Ads:** export with `Day` + `Cost` columns — works as-is
+   - **Generic:** `Date, Amount, Platform` (see the sample template in the modal)
+4. Confirm — MarginMind reports days imported and orders updated.
+
+### How daily spend becomes per-order spend
+
+Each day's total is **split evenly across that day's orders** for the store:
+
+```
+Day total: $120 across 4 orders → $30 attributed per order
 ```
 
+Every affected order's profit is recalculated with its share included. It's an allocation, not attribution (no click-level tracking) — but it answers the crucial question: *"after ads, is this business actually profitable?"*
+
+Re-importing a period **overwrites** the previous allocation, so corrections are easy. Days with spend but no orders aren't lost — they're visible in the platform's own reporting and roll into the day's totals.
+
 ---
 
-## 11. Frontend Architecture
+## 11. Multi-Currency Selling
 
-### File Structure
+### Per-store currency
+
+Each store declares its **country and currency** (16 currencies supported — USD, EUR, GBP, JPY, SEK, PLN, BRL, INR, and more). Country selection sets the default; both are editable.
+
+### What currency do dashboards show?
+
+With multiple stores, pages display amounts in the **most common currency across your stores** and all formatting (symbols, separators) follows that currency via native internationalization.
+
+**Honest limitation:** multi-currency totals are shown in one display currency without FX conversion — amounts are displayed as recorded, in the shop's own denominations. If you sell in EUR and USD, pick the store filter to view each store's true numbers in isolation. Per-order FX conversion is on the [roadmap](#20-roadmap).
+
+### Setting it up
+
+- **New CSV import:** pick country/currency in the import modal
+- **New Shopify connection:** pick country in the connect modal
+- **Existing store:** Stores → pencil icon
+
+---
+
+## 12. Exporting Your Data
+
+**Orders → Export** downloads the current view as CSV, honoring every filter you've set (store, date range):
+
+### Orders export columns
+
+`Order Number, Order Date, Status, Store, Revenue, Product Cost, Shipping, Transaction Fee, Tax, Ad Spend, Refund Amount, Net Profit, Margin %`
+
+### Products export columns
+
+`Title, SKU, Store, Price, Cost, Units Sold, Revenue, Profit, Margin %`
+
+The export is yours to drop into a spreadsheet, hand to your accountant, or archive. The API endpoint (`/api/export/csv`) works with any HTTP client too — see [section 16](#16-api-reference).
+
+---
+
+# Part II — For Builders
+
+---
+
+## 13. Architecture Overview
 
 ```
-app/
-├── api/                    # API route handlers
-│   ├── auth/[...nextauth]/ # NextAuth routes
-│   ├── dashboard/         # Dashboard data
-│   ├── orders/            # Orders API
-│   ├── products/          # Products API
-│   ├── shops/             # Store management
-│   ├── shopify/           # Shopify OAuth
-│   └── stripe/            # Checkout/webhooks
-├── login/                 # Authentication page
-├── dashboard/             # Main analytics dashboard
-├── orders/                # Order management
-├── products/              # Product analytics
-├── stores/                # Store connections
-├── settings/              # User settings
-├── layout.tsx             # Root layout
-├── page.tsx               # Landing page
-└── globals.css            # Tailwind styles
-
-lib/
-├── auth.ts                # NextAuth config + JWT utilities
-├── db.ts                  # Prisma client singleton
-├── profit.ts              # Profit calculation functions
-├── shopify.ts             # Shopify API wrapper
-└── stripe.ts              # Stripe utilities + plan definitions
-
-prisma/
-├── schema.prisma          # Database schema
-└── seed.js                # Demo data generator
-
-components/
-└── SessionProvider.tsx    # Wraps app with NextAuth session provider
+┌─────────────────────────────────────────────────────────┐
+│  Next.js 16 App Router (React 19, TypeScript)           │
+│                                                         │
+│  app/                      components/                  │
+│    page.tsx (landing)        ConnectStoreModal          │
+│    dashboard/orders/…        ImportCsvModal             │
+│    stores/products/…         AdSpendModal               │
+│    api/… (route handlers)    SessionProvider            │
+│                                                         │
+│  lib/                                                   │
+│    fees.ts      fee profiles, currencies, countries, tax│
+│    profit.ts    profit math, aggregation, refunds        │
+│    shopify.ts   Admin API client, transforms            │
+│    csv.ts       dependency-free CSV parse/serialize     │
+│    import.ts    column mapping, order grouping          │
+│    ads.ts       ad-spend parsing + backfill             │
+│    stripe.ts    subscription plans                      │
+│    auth.ts/db.ts  NextAuth / Prisma singleton           │
+└──────────────────────┬──────────────────────────────────┘
+                       │ Prisma
+                ┌──────▼──────┐
+                │  PostgreSQL  │  (Neon serverless)
+                └─────────────┘
 ```
 
-### State Management
-
-- **Server State:** Fetched via API routes with `fetch`
-- **Client State:** React `useState` / `useEffect`
-- **Session State:** `useSession()` hook from NextAuth
-- **Form State:** React state + Zod validation
-
-### Styling
-
-- **Tailwind CSS v4** with JIT compilation
-- **Component classes:** Custom `.card`, `.btn-primary`, `.btn-secondary`
-- **Responsive design:** Mobile-first with `grid-cols-1 md:grid-cols-*`
-- **Theme colors:** Brand green palette (`brand-50` through `brand-900`)
+**Key decision:** all profit math lives in pure functions in `lib/profit.ts` and `lib/fees.ts` — no database, no framework, no I/O. They run identically in Node, serverless functions, and unit tests. The API routes orchestrate; the libs compute.
 
 ---
 
-## 12. API Endpoints Reference
+## 14. Data Model
 
-### Authentication
-
-| Endpoint | Method | Auth Required | Description |
-|----------|--------|---------------|-------------|
-| `/api/auth/[...nextauth]` | GET/POST | No | NextAuth session, callbacks, providers |
-| `/api/register` | POST | No | User registration |
-
-### Data APIs
-
-| Endpoint | Method | Auth Required | Description |
-|----------|--------|---------------|-------------|
-| `/api/dashboard` | GET | Yes | Aggregated profit metrics & charts |
-| `/api/orders` | GET | Yes | Paginated order list with filters |
-| `/api/products` | GET | Yes | Product catalog with profitability |
-| `/api/shops` | GET | Yes | Connected store list |
-
-### Integration APIs
-
-| Endpoint | Method | Auth Required | Description |
-|----------|--------|---------------|-------------|
-| `/api/shopify` | GET/POST | Yes | Shopify OAuth initiation/callback |
-| `/api/shopify/callback` | GET | No | OAuth callback handler |
-| `/api/stripe/checkout` | POST | Yes | Create subscription checkout |
-| `/api/stripe/webhook` | POST | No | Stripe webhook (raw body) |
-
----
-
-## 13. Deployment Guide
-
-### Prerequisites
-
-- Node.js 18+
-- PostgreSQL 14+ (production) or SQLite (dev)
-- Stripe account
-- Shopify Partner account
-- Vercel or similar hosting
-
-### Environment Variables
-
-Create a `.env.local` file:
-
-```env
-DATABASE_URL="postgresql://user:pass@host:5432/margindmind"
-NEXTAUTH_URL="https://yourapp.com"
-NEXTAUTH_SECRET="your-32-char-secret"
-STRIPE_SECRET_KEY="sk_live_..."
-STRIPE_WEBHOOK_SECRET="whsec_..."
-STRIPE_STARTER_PRICE_ID="price_..."
-STRIPE_PRO_PRICE_ID="price_..."
-STRIPE_ENTERPRISE_PRICE_ID="price_..."
-SHOPIFY_API_KEY="your-key"
-SHOPIFY_API_SECRET="your-secret"
-SHOPIFY_APP_URL="https://yourapp.com"
+```prisma
+User            account, hashed password, stripeId
+Subscription    plan, status, stripe subscription ids
+UserSettings    notification preferences
+Shop            one connected store per row
+  country / currency / paymentProvider   commerce identity
+  feePercent / feeFixed                  custom fee override (nullable)
+  taxRate                                shop tax override (nullable)
+Product         externalId, title, sku, cost, price
+Order           one per sale, full cost breakdown
+  totalRevenue, totalCost, shippingCost,
+  transactionFee, taxAmount, adSpend,
+  netProfit, profitMargin, status
+  refundedAt / refundAmount / refundReason
+OrderItem       line items, linked to Product
+AdSpendDay      canonical daily ad spend per shop (shopId+date unique)
 ```
 
-### Deployment Steps
+Design notes:
 
-1. **Database Setup:**
-   ```bash
-   npx prisma db push
-   ```
-
-2. **Seed Demo Data (optional):**
-   ```bash
-   node prisma/seed.js
-   ```
-
-3. **Deploy to Vercel:**
-   ```bash
-   git push origin main
-   ```
-
-4. **Configure Stripe Webhooks:**
-   - Endpoint: `https://yourapp.com/api/stripe/webhook`
-   - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
-
-5. **Configure Shopify OAuth:**
-   - App URL: Your domain
-   - Redirect URLs: `https://yourapp.com/api/shopify/callback`
-
-### Monitoring
-
-- Use `console.error()` for development debugging
-- Add Sentry or LogRocket for production error tracking
-- Monitor Stripe dashboard for payment issues
+- **Money as Float** — deliberate simplification for a demo/analytics tool; a production payments system would use integer cents.
+- **Denormalized profit on Order** — the computed `netProfit` is stored, making list endpoints fast; recomputation happens on cost/fee/tax/refund changes.
+- **`@@unique([shopId, externalId])`** on Order and Product gives idempotent upserts — re-syncing or re-importing never duplicates.
+- **AdSpendDay is the source of truth** for ad spend; `Order.adSpend` is the per-order allocation snapshot derived from it.
 
 ---
 
-## 14. Monetization Strategy
+## 15. The Profit Engine
 
-### Revenue Model
+### `lib/fees.ts`
 
-MarginMind uses a **tiered subscription** model with a freemium entry point.
+- `FEE_PROFILES` — the provider catalog (percent + fixed per provider)
+- `resolveFeeProfile(provider, custom)` — custom rates win over presets
+- `calculateProviderFee(amount, provider, custom)` — the fee for one transaction
+- `CURRENCIES` / `COUNTRIES` / `COUNTRY_TAX_RATES` — the commerce catalog
+- `resolveCurrency`, `resolveTaxRate`, `suggestProviderForCountry` — defaults resolution
+- Regional providers (iDEAL → NL, Bancontact → BE, SEPA → eurozone) are suggested only where they dominate
 
-#### Why This Works
+### `lib/profit.ts`
 
-1. **Immediate value** - Even free tier shows real profit insights
-2. **Natural upgrade path** - Power users hit store/order limits quickly
-3. **High willingness to pay** - Sellers see direct ROI correlation
-4. **Recurring revenue** - Predictable MRR with low churn (stickiness)
+- `calculateOrderProfit({revenue, productCost, shippingCost, fee, tax, adSpend})` — the single-order formula
+- `applyRefund({order, refundAmount})` — post-refund economics (revenue reversed, costs kept)
+- `aggregateMetrics(orders, {includeRefunded})` — period rollups; refunds excluded by default, tax/refund totals surfaced
+- `aggregateProductMetrics(orders)` — per-product revenue/cost/profit from line items
+- `comparePeriods(current, previous)` — percentage deltas with `null` when there's no baseline
 
-#### Customer Segments
+### Recomputation triggers
 
-| Segment | Monthly Revenue | Target Plan |
-|---------|----------------|-------------|
-| Hobby seller | <$1K | Free |
-| Growing store | $1K-10K | Starter ($29) |
-| Scaling brand | $10K-50K | Pro ($79) |
-| Enterprise | $50K+ | Enterprise ($199) |
+History is recalculated when:
 
-#### Projected Economics
-
-| Users | Plan | ARPU | Monthly Revenue |
-|-------|------|------|-----------------|
-| 100 Free | 5% paid = 5 | $29 avg | $145 |
-| 1,000 | 15% paid = 150 |  | $4,350 |
-| 10,000 | 25% paid = 2,500 | | $72,500 |
-| 100,000 | 35% paid = 35,000 | | $1,015,000 |
-
-### Pricing Rationale
-
-- **$0 Free** - No barrier to entry, viral coefficient through data value
-- **$29 Starter** - 10x the value for sellers making $5K+/month
-- **$79 Pro** - Worth it for brands spending $500+/month on ads
-- **$199 Enterprise** - Captures large brand revenue at premium
+| Trigger | What's recomputed |
+|---|---|
+| Product cost edit (`PATCH /api/products/[id]`) | Every order that sold the product |
+| Fee/tax change (`PATCH /api/shops/[id]`) | Every order of the shop |
+| Refund (`POST /api/orders/[id]/refund`) | That order |
+| Ad-spend import (`POST /api/shops/[id]/adspend`) | Every order on affected days |
+| Shopify sync | Orders in the synced range |
 
 ---
 
-## 15. Marketing & Growth
+## 16. API Reference
 
-### Target Customer Personas
+All endpoints are session-gated (`getServerSession`); users only ever see their own data via `shop: { userId }` scoping.
 
-1. **The Etsy Seller** (Sarah)
-   - Handmade products, 50-200 orders/month
-   - Uses spreadsheets for tracking
-   - Values simplicity and affordability
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/dashboard?period\|from,to&shopId` | Metrics, comparison, top products, refund/tax summary |
+| GET | `/api/orders?period\|from,to&shopId` | Order list with refund fields |
+| POST | `/api/orders/[id]/refund` | Full/partial refund, or `{undo: true}` |
+| GET | `/api/products` | Per-product profitability |
+| PATCH | `/api/products/[id]` | Set product cost → recompute affected orders |
+| GET | `/api/shops` | List stores |
+| PATCH | `/api/shops/[id]` | Country/currency/provider/custom fee/tax → optional recompute |
+| DELETE | `/api/shops/[id]` | Remove store and all its data |
+| POST | `/api/shops/[id]/sync` | Incremental Shopify sync |
+| POST | `/api/shops/[id]/adspend` | Import ad-spend CSV → backfill orders |
+| POST | `/api/import/csv` | Order CSV import (store auto-created) |
+| GET | `/api/export/csv?type=orders\|products&shopId&from&to` | CSV download |
+| GET | `/api/shopify?shop&country` | Start OAuth (sets state cookie) |
+| GET | `/api/shopify/callback` | Verify state, exchange code, save shop |
+| POST | `/api/register` | Signup (zod-validated, creates Stripe customer) |
+| POST | `/api/stripe/checkout` | Subscription checkout session |
+| POST | `/api/stripe/webhook` | Subscription lifecycle events |
 
-2. **The Shopify Store Owner** (Mike)
-   - Private label products, 200-1000 orders/month
-   - Uses multiple tools already
-   - Values automation and accuracy
-
-3. **The Amazon FBA Seller** (Jennifer)
-   - High-volume, thin margins
-   - Needs to track PPC spend
-   - Values competitive pricing
-
-### Go-to-Market Channels
-
-#### 1. Content Marketing
-- Blog posts: "How to Calculate True Profit on Shopify"
-- YouTube: "E-commerce Profit Calculator Explained"
-- SEO keywords: "shopify profit calculator", "ecommerce profit margin"
-
-#### 2. Community Engagement
-- Reddit: r/ecommerce, r/Shopify, r/FulfillmentByAmazon
-- Facebook Groups: Shopify sellers, Amazon FBA
-- Discord: Provide value, offer free profit audits
-
-#### 3. Product-Led Growth
-- 14-day free trial on paid plans
-- Shareable profit calculations
-- Viral loops through team features
-
-#### 4. Affiliate Program
-- 30% commission for e-commerce influencers
-- Tutorials creators, course instructors
-- Tools comparison sites
-
-#### 5. Paid Acquisition
-- Google Ads: Target "profit calculator" keywords
-- TikTok/Instagram: Short demos for new sellers
-- Facebook retargeting: Free trial abandonment
-
-### Success Metrics
-
-| Metric | Target |
-|--------|--------|
-| Conversion rate (landing → signup) | 3% |
-| Trial to paid conversion | 8% |
-| Monthly churn | <5% |
-| LTV/CAC ratio | >3x |
-| ARPU growth | 10% QoQ |
+Validation is zod everywhere inputs enter: schema-checked bodies, length/bounds limits on CSVs, ownership checks before every mutation.
 
 ---
 
-## 16. Future Roadmap
+## 17. Authentication and Security
 
-### Phase 1 (MVP - Complete)
-- ✅ Basic profit calculation
-- ✅ Shopify integration
-- ✅ Dashboard with charts
-- ✅ Authentication
-- ✅ Stripe subscriptions
-
-### Phase 2 (Growth)
-- [ ] Amazon SP-API integration
-- [ ] Etsy integration
-- [ ] WooCommerce integration
-- [ ] Ad spend import (Facebook, Google, TikTok)
-- [ ] Email alerts for low-margin products
-- [ ] Product-level profitability insights
-
-### Phase 3 (Scale)
-- [ ] Mobile app (React Native)
-- [ ] Team accounts (multi-user access)
-- [ ] Financial reporting (P&L export)
-- [ ] AI-powered profit optimization suggestions
-- [ ] White-label reseller program
-
-### Phase 4 (Enterprise)
-- [ ] Custom integrations
-- [ ] Advanced analytics (cohorts, LTV)
-- [ ] Role-based access control
-- [ ] Private cloud deployment option
-- [ ] Dedicated customer success
+- **NextAuth credentials provider**, bcrypt-hashed passwords (cost 12), JWT sessions
+- **Shopify OAuth CSRF protection** — random nonce in an httpOnly cookie on initiation, verified on callback; shop domains sanitized against injection
+- **Authorization** — every query/mutation scoped by `userId`; object IDs are never trusted from the client alone
+- **Input validation** — zod schemas on all mutating endpoints; CSV size/row limits
+- **Secrets** — DB credentials and OAuth keys live in environment variables; `DATABASE_URL` is stored as a hidden Vercel secret
 
 ---
 
-*This book is maintained by the MarginMind team. For questions or contributions, visit the GitHub repository.*
+## 18. Deployment Guide
 
-**Repository:** https://github.com/calvinokoth9528-cloud/margindmind  
-**License:** MIT
+The app runs on **Vercel + Neon Postgres** (current production):
+
+```
+Repo:    github.com/calvinokoth9528-cloud/margindmind
+Live:    https://margindmind.vercel.app
+Database: Neon serverless Postgres, production branch
+```
+
+### Deploy your own
+
+1. **Database** — create a Neon project (free tier), copy the pooled connection string.
+2. **Schema** — `DATABASE_URL="<neon-url>" npx prisma db push`
+3. **Seed (optional)** — `DATABASE_URL="<neon-url>" npm run db:seed:pg`
+4. **Hosting** — `vercel link && vercel deploy --prod` (or import the repo in the Vercel dashboard; Git pushes auto-deploy)
+5. **Environment variables** (Vercel project settings):
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Neon pooled connection string |
+| `NEXTAUTH_URL` | `https://your-domain` |
+| `NEXTAUTH_SECRET` | `openssl rand -base64 32` |
+| `NEXT_PUBLIC_APP_URL` | `https://your-domain` |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | for subscriptions |
+| `SHOPIFY_API_KEY` / `SHOPIFY_API_SECRET` / `SHOPIFY_APP_URL` | for store connections |
+
+6. **Webhooks** — point Stripe's endpoint at `/api/stripe/webhook` with events `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+
+### Local development
+
+```bash
+npm install
+cp .env.example .env      # set DATABASE_URL to your Postgres (or Neon) URL
+npm run db:push
+npm run db:seed:pg        # or db:seed for the legacy SQLite flow
+npm run dev               # http://localhost:3000
+```
+
+> Local SQLite no longer matches the schema — Prisma's provider is `postgresql` everywhere. Point local dev at your Neon branch to keep environments identical.
+
+---
+
+## 19. Testing
+
+87 unit tests across 7 suites, run with Node's built-in runner:
+
+```bash
+npm test
+```
+
+| Suite | Covers |
+|---|---|
+| `profit.test.ts` | order math, aggregation, period comparison, refund-aware rollups, break-even, projections |
+| `fees.test.ts` | provider catalog integrity, custom overrides, currency/country resolution, regional provider suggestions |
+| `ads.test.ts` | Meta/Google CSV parsing, platform detection, even-split backfill, overwrite rules |
+| `shopify.test.ts` | fee calculation, order/product transforms, provider-aware fees, webhook HMAC verification |
+| `import.test.ts` | column detection, multi-line grouping, date parsing rules, provider-specific import fees |
+| `csv.test.ts` | parser edge cases (quoting, delimiters, BOM), currency/date parsing |
+| `stripe.test.ts` | plan configuration sanity |
+
+The suite is deliberately hermetic — pure functions only, no database or network — so it runs in seconds anywhere.
+
+---
+
+## 20. Roadmap
+
+**Shipped**
+
+- [x] Shopify OAuth sync + CSV import (template & Shopify exports)
+- [x] Product cost editor with historical recompute
+- [x] Payment-provider fee profiles + custom rates
+- [x] Multi-currency stores, country defaults
+- [x] VAT/sales tax modeling
+- [x] Refunds (full/partial/undo) with trend exclusion
+- [x] Meta/Google ad-spend import with per-order allocation
+- [x] Per-store dashboard filters, custom date ranges
+- [x] CSV export of filtered data
+- [x] Stripe subscriptions (Starter $29 / Pro $79 / Enterprise $199)
+
+**Next**
+
+- [ ] Live Meta Ads + Google Ads API pulls (replacing CSV upload)
+- [ ] Per-order FX conversion for true multi-currency rollups
+- [ ] Amazon / Etsy / WooCommerce native connectors
+- [ ] Order-level break-even and cohort charts
+- [ ] Email reports (weekly margin digest)
+- [ ] Real per-country tax engine (state-level US, reduced VAT categories)
+
+---
+
+*Built with Next.js 16, React 19, Prisma, Neon Postgres, Tailwind CSS v4, and Recharts. This book is generated from the codebase — when the code changes, so should it.*

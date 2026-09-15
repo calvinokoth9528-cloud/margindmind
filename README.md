@@ -6,6 +6,8 @@ shipping, transaction fees, and ad spend.
 
 **Live demo:** https://margindmind.vercel.app — sign in with `demo@margindmind.com` / `password123`
 
+📖 **Read the Book:** [MarginMind_Book.md](./MarginMind_Book.md) — the complete guide to every feature (for store owners) and the architecture behind it (for builders).
+
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router) + React 19 + TypeScript
