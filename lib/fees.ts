@@ -32,6 +32,12 @@ export const FEE_PROFILES: Record<string, FeeProfile> = {
   mtnmomo: { id: 'mtnmomo', label: 'MTN MoMo', percent: 1.5, fixed: 1 },
   telebirr: { id: 'telebirr', label: 'telebirr', percent: 0.5, fixed: 0.5 },
   flutterwave: { id: 'flutterwave', label: 'Flutterwave', percent: 2.8, fixed: 0.3 },
+  // Marketplace platforms (commission on item subtotal; listing/other fees vary)
+  etsy: { id: 'etsy', label: 'Etsy', percent: 6.5, fixed: 0.2 },
+  amazon: { id: 'amazon', label: 'Amazon', percent: 15, fixed: 0 },
+  jumia: { id: 'jumia', label: 'Jumia', percent: 12.5, fixed: 0 },
+  kilimall: { id: 'kilimall', label: 'Kilimall', percent: 10, fixed: 0 },
+  woocommerce: { id: 'woocommerce', label: 'WooCommerce', percent: 0, fixed: 0 },
 };
 
 export const PAYMENT_PROVIDER_IDS = Object.keys(FEE_PROFILES);

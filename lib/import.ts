@@ -66,36 +66,79 @@ type FieldKey =
   | 'unitCost'
   | 'shipping'
   | 'adSpend'
-  | 'total';
+  | 'total'
+  | 'transactionFee'
+  | 'salesTax';
 
-// Aliases are compared against lowercased headers with spaces and underscores
-// removed (e.g. "Order ID", "order_id" and "orderid" all match 'orderid').
+// Aliases are compared against lowercased headers with spaces, underscores
+// AND dashes removed (e.g. "Order ID", "order_id", "orderid" and the
+// hyphenated "amazon-order-id"-style headers all match). This covers Shopify
+// exports, the MarginMind template, and Etsy/Amazon/Jumia/Kilimall reports.
 const FIELD_ALIASES: Record<FieldKey, string[]> = {
-  orderId: ['orderid', 'order', 'name', 'ordernumber', 'id'],
+  orderId: ['orderid', 'amazonorderid', 'merchantorderid', 'order', 'name', 'ordernumber', 'id'],
   orderNumber: ['ordernumber', 'name', 'order', 'orderid'],
-  orderDate: ['paidat', 'createdat', 'date', 'orderdate', 'created', 'updatedat'],
-  status: ['financialstatus', 'status', 'fulfillmentstatus', 'orderstatus'],
+  orderDate: [
+    'paidat',
+    'saledate',
+    'datepaid',
+    'createdat',
+    'purchasedate',
+    'ordertime',
+    'date',
+    'orderdate',
+    'created',
+    'updatedat',
+  ],
+  status: ['financialstatus', 'status', 'fulfillmentstatus', 'orderstatus', 'paymentstatus'],
   productTitle: [
     'lineitemname',
     'producttitle',
+    'productname',
     'product',
     'title',
     'itemname',
     'varianttitle',
-    'productname',
     'itemtitle',
   ],
-  sku: ['lineitemsku', 'variantsku', 'productsku', 'sku', 'itemsku', 'sku1'],
-  quantity: ['lineitemquantity', 'quantity', 'qty', 'itemquantity', 'units', 'count'],
-  unitPrice: ['lineitemprice', 'unitprice', 'price', 'itemprice', 'priceeach'],
+  sku: ['lineitemsku', 'variantsku', 'merchantsku', 'sellersku', 'suppliersku', 'productsku', 'sku', 'itemsku', 'sku1'],
+  quantity: [
+    'lineitemquantity',
+    'quantity',
+    'quantityshipped',
+    'qty',
+    'itemquantity',
+    'numberofitems',
+    'units',
+    'count',
+  ],
+  unitPrice: [
+    'lineitemprice',
+    'unitprice',
+    'price',
+    'itemprice',
+    'paidprice',
+    'priceeach',
+  ],
   unitCost: ['cost', 'unitcost', 'productcost', 'landedcost', 'cogs', 'costofgoods'],
-  shipping: ['shipping', 'shippingcost', 'totalshipping', 'fulfillmentcost'],
+  shipping: [
+    'shipping',
+    'ordershipping',
+    'shippingprice',
+    'shippingfee',
+    'shippingcost',
+    'totalshipping',
+    'fulfillmentcost',
+  ],
   adSpend: ['adspend', 'ads', 'advertising', 'marketingspend', 'adcost'],
-  total: ['total', 'totalprice', 'totalrevenue', 'revenue', 'amount', 'ordertotal'],
+  total: ['total', 'ordertotal', 'ordervalue', 'totalprice', 'totalrevenue', 'revenue', 'amount'],
+  // Optional: when the export carries the platform's actual fees/tax we use
+  // them verbatim (more accurate than the provider profile estimate).
+  transactionFee: ['cardprocessingfees', 'transactionfees', 'transactionfee', 'sellingfees'],
+  salesTax: ['salestax', 'saletax', 'ordersalestax', 'itemtax', 'vatpaidbybuyer', 'vatpaid', 'tax'],
 };
 
 const normalizeHeader = (header: string) =>
-  header.trim().toLowerCase().replace(/[\s_]+/g, '');
+  header.trim().toLowerCase().replace(/[\s_-]+/g, '');
 
 export function detectField(
   headers: string[],
@@ -123,6 +166,8 @@ interface RowFields {
   shipping: number;
   adSpend: number;
   total: number;
+  transactionFee: number;
+  salesTax: number;
   hasTotalColumn: boolean;
   hasOrderId: boolean;
 }
@@ -141,7 +186,7 @@ function extractRow(row: CsvRow, headers: string[], index: number): RowFields {
 
   return {
     orderId: orderIdRaw.trim(),
-    orderNumber: get('orderNumber').trim() || `#${1000 + index}`,
+    orderNumber: get('orderNumber').trim(),
     orderDate: parseDate(get('orderDate')),
     status: (get('status').trim() || 'paid').toLowerCase(),
     productTitle: get('productTitle').trim(),
@@ -152,6 +197,8 @@ function extractRow(row: CsvRow, headers: string[], index: number): RowFields {
     shipping: parseNumber(get('shipping')),
     adSpend: parseNumber(get('adSpend')),
     total: parseNumber(totalRaw),
+    transactionFee: parseNumber(get('transactionFee')),
+    salesTax: parseNumber(get('salesTax')),
     hasTotalColumn,
     hasOrderId: orderIdRaw.trim() !== '',
   };
@@ -256,8 +303,15 @@ export function buildImportFromRows(
       0
     );
     const shippingCost = first.shipping;
-    const transactionFee = calculateProviderFee(totalRevenue, feeProvider, customFee);
-    const taxAmount = totalRevenue * (taxRate / 100);
+    // Prefer the platform's own reported fee/tax from the export when present
+    // (Etsy "Card Processing Fees", Amazon "Item Tax", etc.); fall back to
+    // the shop's provider profile and tax rate.
+    const transactionFee =
+      first.transactionFee > 0
+        ? first.transactionFee
+        : calculateProviderFee(totalRevenue, feeProvider, customFee);
+    const taxAmount =
+      first.salesTax > 0 ? first.salesTax : totalRevenue * (taxRate / 100);
     const adSpend = first.adSpend;
     const netProfit =
       totalRevenue -
@@ -269,7 +323,10 @@ export function buildImportFromRows(
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
     let externalId = key;
-    let orderNumber = first.orderNumber;
+    // Fall back to the order id (e.g. an Amazon/Jumia order number) when the
+    // export has no dedicated order-number column.
+    let orderNumber =
+      first.orderNumber || (key.startsWith('__row_') ? '' : key);
     if (key.startsWith('__row_')) {
       externalId = `csv_${Date.now()}_${generatedOrder++}`;
       orderNumber = orderNumber || `#${1000 + generatedOrder}`;

@@ -118,17 +118,33 @@ No API access? Selling on Etsy, Amazon, WooCommerce, or a spreadsheet? The CSV i
 
 | Column | Accepted names (examples) |
 |---|---|
-| Order ID | `Order ID`, `Name`, `Order` |
-| Date | `Paid at`, `Created at`, `Order Date`, `Date` |
-| Status | `Financial Status`, `Status` |
-| Product | `Lineitem name`, `Product Title`, `Title` |
-| SKU | `Lineitem SKU`, `SKU` |
-| Quantity | `Lineitem quantity`, `Qty`, `Units` |
-| Unit price | `Lineitem price`, `Unit Price`, `Price` |
+| Order ID | `Order ID`, `Name`, `Order`, `amazon-order-id` |
+| Date | `Paid at`, `Sale Date`, `Date Paid`, `Purchase Date`, `Order Time`, `Created at` |
+| Status | `Financial Status`, `Status`, `Payment Status` |
+| Product | `Lineitem name`, `Product Title`, `Item Name`, `Product Name` |
+| SKU | `Lineitem SKU`, `SKU`, `Seller SKU`, `Merchant SKU` |
+| Quantity | `Lineitem quantity`, `Qty`, `Quantity Shipped`, `Number of Items` |
+| Unit price | `Lineitem price`, `Unit Price`, `Price`, `Paid Price` |
 | Unit cost | `Cost`, `Unit Cost`, `COGS`, `Landed Cost` |
-| Shipping | `Shipping`, `Total Shipping` |
+| Shipping | `Shipping`, `Order Shipping`, `Shipping Price`, `Shipping Fee` |
+| Platform fees | `Card Processing Fees`, `Transaction Fees`, `Selling Fees` |
+| Tax | `Sales Tax`, `Order Sales Tax`, `Item Tax`, `VAT Paid by Buyer` |
 | Ad spend | `Ad Spend`, `Advertising`, `Marketing Spend` |
-| Order total | `Total`, `Total Revenue`, `Order Total` |
+| Order total | `Total`, `Order Total`, `Order Value`, `Total Price` |
+
+### Platform exports that work as-is
+
+| Platform | Where to download | Notes |
+|---|---|---|
+| **Shopify** | Admin → Orders → Export | Multi-line orders grouped automatically |
+| **Etsy** | Shop Manager → Settings → Download Data → *Order Items* | `Card Processing Fees` and `Order Sales Tax` used **verbatim** — more accurate than any estimate |
+| **Amazon (FBA)** | Seller Central → Reports → Fulfilled Shipments | Hyphenated headers (`amazon-order-id`) auto-match; `item-tax` used verbatim |
+| **Jumia** | Vendor Center → orders report | `Paid Price` + `Shipping Fee` mapped; 12.5% commission estimated |
+| **Kilimall** | Seller Center → orders export | 10% commission estimated |
+| **WooCommerce** | Admin → Orders → Export (or any export plugin) | No platform cut; your payment provider's fees apply |
+| **Any spreadsheet** | — | Loose matching + the template above |
+
+**Marketplace fee profiles** (editable per store): Etsy 6.5% + $0.20, Amazon 15%, Jumia 12.5%, Kilimall 10%, WooCommerce 0% (your gateway's fees apply instead).
 
 **Multi-line orders** (Shopify repeats an order once per line item) are grouped back into a single order, with the total counted once.
 

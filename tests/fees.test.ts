@@ -39,6 +39,15 @@ describe('FEE_PROFILES', () => {
     assert.equal(FEE_PROFILES.none.fixed, 0);
   });
 
+  it('covers marketplace platforms with realistic commissions', () => {
+    assert.equal(FEE_PROFILES.etsy.percent, 6.5);
+    assert.equal(FEE_PROFILES.etsy.fixed, 0.2);
+    assert.equal(FEE_PROFILES.amazon.percent, 15);
+    assert.equal(FEE_PROFILES.jumia.percent, 12.5);
+    assert.equal(FEE_PROFILES.kilimall.percent, 10);
+    assert.equal(FEE_PROFILES.woocommerce.percent, 0); // self-hosted: no platform cut
+  });
+
   it('charges more via PayPal than Shopify Payments', () => {
     assert.ok(FEE_PROFILES.paypal.percent > FEE_PROFILES.shopify.percent);
   });

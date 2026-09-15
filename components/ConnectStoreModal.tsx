@@ -6,10 +6,26 @@ import { COUNTRIES } from '@/lib/fees';
 
 const PLATFORMS = [
   { id: 'SHOPIFY', label: 'Shopify' },
-  { id: 'AMAZON', label: 'Amazon' },
   { id: 'ETSY', label: 'Etsy' },
+  { id: 'AMAZON', label: 'Amazon' },
   { id: 'WOOCOMMERCE', label: 'WooCommerce' },
+  { id: 'JUMIA', label: 'Jumia' },
+  { id: 'KILIMALL', label: 'Kilimall' },
+  { id: 'CSV', label: 'Other (CSV import)' },
 ] as const;
+
+const CSV_PLATFORMS = new Set(['ETSY', 'AMAZON', 'WOOCOMMERCE', 'JUMIA', 'KILIMALL', 'CSV']);
+
+// Platform → suggested fee profile for the store (fees are editable later)
+const PLATFORM_PROVIDERS: Record<string, string> = {
+  ETSY: 'etsy',
+  AMAZON: 'amazon',
+  JUMIA: 'jumia',
+  KILIMALL: 'kilimall',
+  WOOCOMMERCE: 'stripe',
+  SHOPIFY: 'shopify',
+  CSV: 'other',
+};
 
 interface ConnectStoreModalProps {
   open: boolean;
@@ -26,10 +42,11 @@ export default function ConnectStoreModal({ open, onClose }: ConnectStoreModalPr
   if (!open) return null;
 
   const isShopify = platform === 'SHOPIFY';
+  const isCsvPlatform = CSV_PLATFORMS.has(platform);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shopUrl || submitting) return;
+    if (!isShopify || !shopUrl || submitting) return;
 
     try {
       setSubmitting(true);
@@ -129,15 +146,41 @@ export default function ConnectStoreModal({ open, onClose }: ConnectStoreModalPr
                   </p>
                 </div>
               </>
-            ) : (
-              <div className="mb-4 flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-800">
-                  {platform.charAt(0) + platform.slice(1).toLowerCase()} integration is
-                  coming soon. Shopify is fully supported today.
+            ) : isCsvPlatform ? (
+              <div className="mb-4 flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-blue-800">
+                  {platform === 'CSV' ? (
+                    <>
+                      Connect via <strong>Stores → Import CSV</strong> — upload your
+                      order export and we'll detect the columns automatically.
+                    </>
+                  ) : (
+                    <>
+                      No API needed: download your order report from{' '}
+                      {platform === 'ETSY'
+                        ? 'Etsy (Shop Manager → Settings → Download Data)'
+                        : platform === 'AMAZON'
+                        ? 'Amazon Seller Central (Fulfilled Shipments report)'
+                        : platform === 'JUMIA'
+                        ? 'Jumia Vendor Center (orders report)'
+                        : platform === 'KILIMALL'
+                        ? 'Kilimall Seller Center (orders export)'
+                        : 'WooCommerce (order export plugin or Admin → Export)'}{' '}
+                      and use <strong>Import CSV</strong> — its columns are detected
+                      automatically, with {PLATFORM_PROVIDERS[platform] === 'etsy'
+                        ? '6.5% + $0.20'
+                        : PLATFORM_PROVIDERS[platform] === 'amazon'
+                        ? '15%'
+                        : PLATFORM_PROVIDERS[platform] === 'jumia'
+                        ? '12.5%'
+                        : '10%'}{' '}
+                      marketplace fees applied.
+                    </>
+                  )}
                 </p>
               </div>
-            )}
+            ) : null}
 
             {error && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
@@ -147,8 +190,9 @@ export default function ConnectStoreModal({ open, onClose }: ConnectStoreModalPr
 
             <button
               type="submit"
-              disabled={submitting || (!isShopify)}
+              disabled={submitting || isShopify}
               className="w-full btn-primary py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ display: isShopify ? undefined : 'none' }}
             >
               <Store className="h-4 w-4 mr-2" />
               {submitting ? 'Connecting...' : 'Connect Store'}

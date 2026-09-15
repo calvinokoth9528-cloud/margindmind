@@ -119,6 +119,59 @@ describe('buildImportFromRows', () => {
     assert.ok(Math.abs(fallback.orders[0].transactionFee - 3.2) < 1e-9);
   });
 
+  it('imports Etsy Sold Order Items exports with platform fees', () => {
+    const csv = [
+      'Sale Date,Order ID,Item Name,Quantity,Price,Order Shipping,Order Sales Tax,Card Processing Fees,SKU',
+      '8/28/2026,3012345678,Handmade Beaded Necklace,2,25.00,4.50,2.20,3.60,BN-001',
+    ].join('\n');
+
+    const { orders, skipped } = buildImportFromRows(parseCsv(csv), { paymentProvider: 'etsy' });
+    assert.equal(skipped.length, 0);
+    assert.equal(orders.length, 1);
+
+    const order = orders[0];
+    assert.equal(order.orderNumber, '3012345678');
+    assert.equal(order.items[0].productTitle, 'Handmade Beaded Necklace');
+    // Revenue = items (2 × 25) + shipping
+    assert.equal(order.totalRevenue, 54.5);
+    // Etsy's own reported fees/tax are used verbatim, not the profile estimate
+    assert.equal(order.transactionFee, 3.6);
+    assert.equal(order.taxAmount, 2.2);
+  });
+
+  it('imports Amazon Fulfilled Shipments exports (tab-style hyphen headers)', () => {
+    const csv = [
+      'amazon-order-id,purchase-date,sku,product-name,quantity-shipped,item-price,item-tax,shipping-price',
+      '111-2345678-9012345,2026-08-20T12:00:00+00:00,ASIN-WDG,Wireless Widget,1,29.99,2.4,4.99',
+    ].join('\n');
+
+    const { orders, skipped } = buildImportFromRows(parseCsv(csv), { paymentProvider: 'amazon' });
+    assert.equal(skipped.length, 0);
+    assert.equal(orders.length, 1);
+
+    const order = orders[0];
+    assert.equal(order.orderNumber, '111-2345678-9012345');
+    assert.equal(order.totalRevenue, 34.98);
+    assert.equal(order.taxAmount, 2.4); // Amazon's reported item tax used verbatim
+    assert.equal(order.shippingCost, 4.99);
+  });
+
+  it('imports Jumia-style seller reports with KES amounts', () => {
+    const csv = [
+      'Order Number,Order Date,Product Name,Seller SKU,Quantity,Paid Price,Shipping Fee',
+      'JM-88231,2026-09-02,Maasai Blanket,KE-MBL-001,1,3500,250',
+    ].join('\n');
+
+    const { orders, skipped } = buildImportFromRows(parseCsv(csv), { paymentProvider: 'jumia' });
+    assert.equal(skipped.length, 0);
+    assert.equal(orders.length, 1);
+
+    const order = orders[0];
+    assert.equal(order.totalRevenue, 3750);
+    // No fee/tax columns in this export → Jumia profile estimate (12.5%) applies
+    assert.ok(Math.abs(order.transactionFee - 3750 * 0.125) < 1e-9);
+  });
+
   it('skips empty rows and reports unknown rows', () => {
     const csv = ['A,B', '1,2', ',,', '3,4'].join('\n');
     const { orders, skipped } = buildImportFromRows(parseCsv(csv));
